@@ -4,202 +4,121 @@
 // 1 - Segregate: egregates the different smiluation protocols in 100, 200 and 500 Hz
 // 2 - AVG: averages all the PM* traces in the datafolder
 
-Function Segregate() //segregates the different smiluation protocols in 100, 200 and 500 Hz folders
-
-
-
+ //segregates the different smiluation protocols in 100, 200 and 500 Hz folders
+//OBS: it's very unlikelly it'll work with someone else's recordings though. use at your own risk 
+function segregate()
 String Name=getdatafolder(1)
-
-
-String Dest
-String List=wavelist("*", ";","")
-Variable i
-Variable Min_Peak=-1e-9
-
-Variable Point_1, Point_2
-Variable Delta
-For (i=0;i<itemsinlist(list);i+=1)
-	findpeak /i /n /q  /M=(Min_Peak) $Stringfromlist(i,list)
-	Point_1=v_PeakLoc
-	findpeak /i /n /q  /M=(Min_Peak) /r=(Point_1+0.002,+inf) $Stringfromlist(i,list)
-	Point_2=v_Peakloc
-	Delta=Point_2-Point_1
-	If (Delta>0.009 && Delta<0.011)
+String list=wavelist("*",";","")
+variable i, Pos, Freq
+String Temp_S,Dest
+for (i=0;i<itemsinlist(list);i+=1)
+	Wave temp=$Stringfromlist(i,list)
+	Pos=strsearch(note(temp),"Channel",0)
+	Temp_S=note(temp)[Pos+10,inf]
+	Pos=Strsearch(Temp_S,"Channel",0)
+	Temp_S=Temp_S[Pos,Pos+500]
+	Freq=Delta(Temp_S)	
+	If (Freq==100)
 		Dest=Name+"F_100:"
 		If (DataFolderExists("F_100")==0)
 			Newdatafolder F_100
 		Endif
 		Movewave $Stringfromlist(i,list), $Dest
 	Endif
-	If (Delta>0.09 && Delta<0.11)
-		Dest=Name+"F_10:"
-		If (DataFolderExists("F_10")==0)
-			Newdatafolder F_10
+	If (Freq==200)
+		Dest=Name+"F_200:"
+		If (DataFolderExists("F_200")==0)
+			Newdatafolder F_200
 		Endif
 	Movewave $Stringfromlist(i,list), $Dest
 	Endif
-	If (Delta>0.045 && Delta<0.055)
-		Dest=Name+"F_20:"
-		If (DataFolderExists("F_20")==0)
-			Newdatafolder F_20
+	If (Freq==500)
+		Dest=Name+"F_500:"
+		If (DataFolderExists("F_500")==0)
+			Newdatafolder F_500
 		Endif
-		Movewave $Stringfromlist(i,list), $Dest
-	Endif
-	If (Delta>0.019 && Delta<0.022)
-		Dest=Name+"F_50:"
-		If (DataFolderExists("F_50")==0)
-			Newdatafolder F_50
-		Endif
-		Movewave $Stringfromlist(i,list), $Dest
-	Endif
-//	If (Delta>0.0019 && Delta<0.003)
-//		Dest=Name+"F_500:"
-//		If (DataFolderExists("F_500")==0)
-//			Newdatafolder F_500
-//		Endif
-//		Movewave $Stringfromlist(i,list), $Dest
-//	Endif
-//	If (Delta>0.004 && Delta<0.006)
-//		Dest=Name+"F_200:"
-//		If (DataFolderExists("F_200")==0)
-//			Newdatafolder F_200
-//		Endif
-//		Movewave $Stringfromlist(i,list), $Dest
-//	Endif
-//	If (Delta<0.0011)
-	//	Dest=Name+"F_1K:"
-		//Movewave $Stringfromlist(i,list), $Dest
-//	Endif
-
+	Movewave $Stringfromlist(i,list), $Dest
+	Endif	
 endfor
+end
+
+static function delta(Temp_S)
+String Temp_S
+if (strsearch (Temp_S,"9.90 ms",0)!=-1)
+	return 100
+endif
+if (strsearch (Temp_S,"4.90 ms",0)!=-1)
+	return 200
+endif
+if (strsearch (Temp_S,"1.90 ms",0)!=-1)
+	return 500
+endif
 
 end
 
 
-
+//performs a simple averaging of a wavelist containig the wildcard string with the function
 Function AVG_sims(Name)
 String Name 
 String list=wavelist("*"+Name+"*",";","")
-Variable i
 if (strlen(list)==0)
 	Print "******************* No such waves in this DF *******************"
 	abort
 endif
-duplicate /o $Stringfromlist(0,list), temp
-for (i=1;i<itemsinlist(list);i+=1)
-	wave temp2=$Stringfromlist(i,list)
-	temp+=temp2
-endfor
-temp/=i
-print i
+concatenate /o/np=1 list, Matrix
+matrixop /o temp=sumrows(Matrix)
+temp/=itemsinlist(list)
+setscale /p x,0,deltax($Stringfromlist(0,list)),"s",temp
 duplicate/o temp, $Name+"_AVG"
-killwaves /z temp, MAxes, Division_indexes
+killwaves /z temp, Matrix
 end
 
-Function DFs()//creates Datafolders with different names to make my life easier
-
-Variable i,Num_DFs=2 //amount of different datafolders to be created minus the control
-String DFs_Names="F_100;F_200;F_500;"
-for (i=0;i<num_dfs+1;i+=1)
-	If (datafolderExists(Dfs_names[i])==0)
-		NewDatafolder $Stringfromlist(i,Dfs_names)
-	endif
-endfor
-end
-
-
-
-Function Look_DFs() //go and  into each datafolder (one evel only) and perform the action in the "for" loop
+//change active datafolder (one evel only) and retrieves listed waves into the original datafolder
+//while averaging them 
+Function Look_DFs() 
 String Comm="s"
 String DF_List=Stringbykey("Folders",datafolderdir(1),":",";")
 Variable i,j
 String This_DF=getdatafolder(1)
 DFREF This_DataF = GetDataFolderDFR()
-String GO_To_DF
+String GO_To_DF, Sublist
 String list=wavelist("*",";","")
-for (i=0;i<itemsinlist(list);i+=1)
-	if (stringmatch(stringfromlist(i,list),"*pulse*")!=1 && stringmatch(stringfromlist(i,list),"P_*")!=1)
-//		killwaves/z $Stringfromlist(i,list)
-	endif
-endfor
-List ="Amplitudes;"//Raster_Wave;HW;:APs:ACT_Pot_0;"
-//List ="Act_avg;"//Raster_Wave;HW;Amplitudes;Amplitudes_Raw;Threshold_wv;Mean_ap"
 
-String Sublist
-For (i=0;i<itemsinlist(List);i+=1)
-	Sublist=wavelist(Stringfromlist(i,list)+"!P*",";","")
-	for (j=0;j<itemsinlist(sublist);j+=1)
-//		killwaves /z $Stringfromlist(j,sublist)
-	endfor
-endfor
+List ="Amplitudes;"//Raster_Wave;HW;:APs:ACT_Pot_0;" //your waves here!
+
 For (i=0;i<itemsinlist(DF_List,",");i+=1)
-GO_To_DF=This_DF+stringfromlist(i,DF_List,",")+":"
-
+	GO_To_DF=This_DF+stringfromlist(i,DF_List,",")+":"
 	Setdatafolder GO_To_DF
 	Retrieve_from_DF(This_DataF,i,list)
 	Setdatafolder This_DataF
-
 endfor
-//list=wavelist("Mid_AP_AVG_500_ctrl*",";","")
-//align_aps(list,0)
-
 for (i=0;i<itemsinlist(list);i+=1)
-sublist=wavelist(stringfromlist(i,list)+"*",";","")
-for (j=0;j<itemsInList(sublist);j+=1)
-Averages(stringfromlist(i,list))
-endfor
+	sublist=wavelist(stringfromlist(i,list)+"*",";","")
+	for (j=0;j<itemsInList(sublist);j+=1)
+		Averages(stringfromlist(i,list))
+	endfor
 endfor
 end
 
 
-
-
-
-
-Function Retrieve_From_DF(Prev_DataF,index,list) //retrieves the waves designated in the LIST string to the main datafolder with numbers as suffixes
+//retrieves the waves designated in the LIST string to the main datafolder with numbers as suffixes
+Function Retrieve_From_DF(Prev_DataF,index,list) 
 DFREF Prev_DataF
 Variable index
-String List 
-//List =wavelist("P_2_9*",";","")//"Final_AVG;Initial_AVG;" //the waves you need right here!
-
-Wave Amplitudes,Amplitudes_Norm,Threshold_Wv_eq,Delay
-Variable i
+String List
 String Name, Name2
-
-//list=wavelist("Act_*",";","")
-
-//Duplicate/o $Stringfromlist(0,list), Temp
-
+Variable i 
 For (i=0;i<itemsinlist(list);i+=1)
-//if (stringmatch(comm,"kill")==1)
-//	setdatafolder Prev_DataF
-//	if (stringmatch(stringfromlist(i,list),"P*")==1)
-//		killdatafolder Stringfromlist(i,list)
-//	endif
-//else
-//wave temp2=$Stringfromlist(i,list)	
 	Name=Stringfromlist(i,list)+"_"+num2str(index)
 	if (stringmatch(Name,"*:*"))
-
 		Name2=stringfromlist(2,name,":")
-	//	rename $name, $Name2
-		name=name2
-		
+		name=name2		
 	endif
 	Duplicate/o $Stringfromlist(i,list), $name
-//	temp+=temp2
-	
-	
-//endif
-
-//temp/=5
-
-//Name="Mid_AP_AVG_500_ctrl"+num2str(index)
-
 movewave $Name, Prev_DataF
-//killwaves temp
 endfor
 end
+
 
 Function P_Time()
 string List=sortlist(wavelist("P_*",";",""),";",16)
@@ -271,16 +190,6 @@ Function Loads()
 //  /J=objectNamesStr	Loads only the objects named in the semicolon-separated list of object names.
 loaddata /I /L=1 /R /T /j="Mid_AP_AVG;"//"Mid_AP_AVG_Stry_500;Mid_AP_AVG_Ctrl_500;Mid_AP_AVG_100_stry;Mid_AP_AVG_100_Ctrl;Mid_AP_AVG_500_Stry;Mid_AP_AVG_500_Ctrl;Mid_AP_AVG_stry_100;Mid_AP_AVG_Ctrl_100;"
 end
-
-•look_dfs()
-•avgs("Threshold")
-•avgs("Amplitudes")
-•Avgs("Delay")
-•avgs("Final")
-•avgs("Initial")
-avgs("HW")
-•edit /k=1 Threshold_wv_eq_avg,Amplitudes_avg,Delay_avg, HW_Avg
-
 
 Function/t align_APs(select)//(list, option)
 variable select
@@ -686,19 +595,6 @@ for (i=1;i<itemsInList(list);i+=1)
 endfor
 end
 
-Function Set_C() // sets cursosrs for HFS analysis
-//SetAxis bottom 0.098,0.103
-//SetAxis bottom 0.098,0.103
-
-
-//SetAxis bottom 0.0296,0.034
-SetAxis bottom 0.0211,0.0225
-
-String Wv=wavelist("*",";","Win:")
-//wave temp=$Stringfromlist(0,Wv)
-cursor /A=1 A $Stringfromlist(0,Wv) 0.0218
-cursor /A=1 B $Stringfromlist(0,Wv) 0.0223
-end
 
 function ar() // retrieves the area under curve for short HFS - used in Geroge's experiments
 wave avg_artif
@@ -713,88 +609,76 @@ areas-=baseline_area
 end
 
 
-function IDF() //"�nvade datafolders" - accesses DFs (one level only)  and execute the desired command(s)
+function IDF() //"ïnvade datafolders" - accesses DFs (one level only)  and execute the desired command(s)
 Variable DF_Num=countobjects("",4)
 variable i
 wave P_avg, PMPulse_avg,a_amplitude0, amp_norm
 for (i=0;i<DF_Num;i+=1)
-
 	Setdatafolder getindexedObjName("",4,i)
-//		avg_sims("P")
-//	execute"resample /up=10 P_avg"
 
-//		showinfo
-//execute "Edit /k=1 Amplitudes, Amplitudes_norm"
-//	segregate()
-//display_all()
-//sleep /s 1
-//look_dfs()
-avg_sims("P")
-
-		execute "display /k=1 P_avg"; showinfo
-//look_dfs()
-//set(); display_all(); Showinfo
-
-
-//execute "Duplicate /o a_amplitude0, Amp_norm"
-//execute "Amp_norm/=a_amplitude0[0]"
+	zap()
+	//		avg_sims("P")
+	//	execute"resample /up=10 P_avg"
+	//		showinfo
+	//execute "Edit /k=1 Amplitudes, Amplitudes_norm"
+	//	segregate()
+	//display_all()
+	//sleep /s 1
+	//look_dfs()
+	//avg_sims("P")
+	//execute "display /k=1 P_avg"; showinfo
+	//look_dfs()
+	//set(); display_all(); Showinfo
+	//execute "Duplicate /o a_amplitude0, Amp_norm"
+	//execute "Amp_norm/=a_amplitude0[0]"
+	
 	setdatafolder ::
-	
-endfor
-
-end
-
-function sggt()
-String Name=getdatafolder(1)
-String list=wavelist("*",";","")
-variable i, Pos, Freq
-String Temp_S,Dest
-for (i=0;i<itemsinlist(list);i+=1)
-	Wave temp=$Stringfromlist(i,list)
-	Pos=strsearch(note(temp),"Channel",0)
-	Temp_S=note(temp)[Pos+10,inf]
-	Pos=Strsearch(Temp_S,"Channel",0)
-	Temp_S=Temp_S[Pos,Pos+500]
-	//print temp_s
-//abort
-	Freq=Delta(Temp_S)	
-	If (Freq==100)
-		Dest=Name+"F_100:"
-		If (DataFolderExists("F_100")==0)
-			Newdatafolder F_100
-		Endif
-		Movewave $Stringfromlist(i,list), $Dest
-	Endif
-	If (Freq==200)
-		Dest=Name+"F_200:"
-		If (DataFolderExists("F_200")==0)
-			Newdatafolder F_200
-		Endif
-	Movewave $Stringfromlist(i,list), $Dest
-	Endif
-	If (Freq==500)
-		Dest=Name+"F_500:"
-		If (DataFolderExists("F_500")==0)
-			Newdatafolder F_500
-		Endif
-	Movewave $Stringfromlist(i,list), $Dest
-	Endif
-
-	
 endfor
 end
 
-function delta(Temp_S)
-String Temp_S
-if (strsearch (Temp_S,"9.90 ms",0)!=-1)
-	return 100
-endif
-if (strsearch (Temp_S,"4.90 ms",0)!=-1)
-	return 200
-endif
-if (strsearch (Temp_S,"1.90 ms",0)!=-1)
-	return 500
-endif
 
+
+
+//Calculatest the FFT from input (current) and output (voltage)
+//after averaging the chirp waves. It calculates the impedance by dividing V_FFT/I_FFT and 
+//outputs a wave ("final") which is the whole FFT spectrum of the waves.
+ 
+function ZAP()
+Print "********************   Start calculating ZAP wave, please wait.   ********************"
+variable i
+avg_sims("Vmon")
+avg_sims("Imon")
+Variable Freq_ini=1 //defines the final FFT piece to be used
+Variable Freq_final=300 //defines the final FFT piece to be used
+wave Imon_avg, Vmon_avg
+Print "Averages calculated..."
+FFT/OUT=1/DEST=Imon_FFT Imon_AVG
+FFT/OUT=1/DEST=Vmon_FFT vmon_AVG
+Print "FFTs calculated..."
+make/o /n=(numpnts(Imon_FFT)) Imped_real
+make/o /n=(numpnts(Imon_FFT)) Imped_Img
+duplicate/o /c Imon_FFT, Imped
+Imped=Vmon_FFT/Imped
+imped_real=Imped[p]
+imped_img=imag(imped)
+make/o/n=(numpnts(Imped_Real)) Final
+Final = sqrt(Imped_Real^2+Imped_Img^2)
+setscale /p x,0,deltax(Imon_FFT),"Hz",Final
+deletepoints x2pnt(final,Freq_final), numpnts(final)-x2pnt(final,Freq_final), final
+deletepoints 0,x2pnt(final, Freq_ini),final
+setscale /p x,Freq_ini,deltax(Imon_FFT),"Hz",Final
+PPTDoKillMultipleWaves ("Imon-", 1); Doupdate
+PPTDoKillMultipleWaves ("Vmon-", 1); Doupdate
+Duplicate/O Final, filtered
+Make/O/D/N=0 coefs
+FilterFIR/DIM=0/LO={0,0.0166611,101}/COEF coefs, filtered
+resample /down=10 filtered
+killwaves /z Imped, Imon_FFT, Vmon_FFT, coefs, Imped_real, Imped_img
+for (i=0;i<3;i+=1)
+	Doupdate
+	beep
+	sleep /s 0.3
+endfor
+Print "***********************Success calculating ZAP wave.***********************"
 end
 

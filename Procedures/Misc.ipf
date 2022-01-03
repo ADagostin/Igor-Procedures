@@ -682,3 +682,60 @@ endfor
 Print "***********************Success calculating ZAP wave.***********************"
 end
 
+
+function seg_ch()
+	newdatafolder /o Amp_100
+	newdatafolder /o Amp_50
+	string name, Volt, Curr
+	variable i, delta
+	string list=wavelist("*",";","")
+	if (stringmatch(stringfromList(0,list),"*mon*")) 									// checks whether the waves are named after the PPT or BPC loading XOPs
+		Volt="Vmon"
+		Curr="Imon"
+	else
+		Volt="V"
+		Curr="I"
+	endif
+		for (i=0;i<itemsinlist(list);i+=1)
+		if (stringmatch(stringfromlist(i,list),"*"+Curr+"*")) 						//is it an I_mon wave?
+			wavestats /q $stringfromlist(i,list) 										//the amplitude of the chirp wave is calculated
+			name =replacestring("2_"+Curr,stringfromlist(i,list),"1_"+Volt) 		//gets the corresponding V_mon wave name
+			wave temp=$stringfromlist(whichlistitem(name,list),list)				//defines "temp" as the V_mon wave - just to make my life easier
+			delta=v_max-v_min 																	//the amplitude of the chirp wave
+			if (delta>105e-12) 																//sets the datafolder that will host the wave pair depending on the stimulus amplitude
+				movewave $stringfromlist(i,list), :Amp_100:
+				movewave temp, :Amp_100:
+				else
+				movewave $stringfromlist(i,list), :Amp_50:
+				movewave temp, :Amp_50:
+			endif
+	endif
+endfor
+//futher segregation in different holding (-80, -70, -60 and -50 mV)
+setdatafolder Amp_100
+seg_chirp(Volt, Curr)
+setdatafolder ::
+setdatafolder Amp_50
+seg_chirp(Volt,Curr)
+setdatafolder ::
+end
+
+static function seg_chirp(Volt,Curr)
+	String VOlt, Curr
+	newdatafolder /o CC_80
+	newdatafolder /o CC_70
+	newdatafolder /o CC_60
+	newdatafolder /o CC_50
+	String list=wavelist("*"+Volt+"*",";","")
+	String sublist=wavelist("*"+Curr+"*",";","")
+	variable i
+	String DF_names=":CC_50:;:CC_60:;:CC_70:;:CC_80:;" 		//the datafolder name list that will host the waves
+	for (i=0;i<itemsinlist(list);i+=1)
+		wave temp=$Stringfromlist(i,list) 						//the current V_mon wave in the lsit
+		wave temp_i=$Stringfromlist(i,sublist) 					//the current I_mon wave in the list
+		variable avg=round(mean(temp,0,0.01)  *-1e2-5) 		// genius here: avg is the average from 0 to 10 mV of the V_mon wave. It is multiplied by -100, subtracted 5 and roundes, 
+																			//	resulting in integers from 0 to 3, which will be used as indexes for the DF_names list.
+		movewave temp, $stringfromlist(avg, DF_names)
+		movewave temp_i, $stringfromlist(avg, DF_names)
+	endfor
+end

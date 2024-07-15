@@ -19,33 +19,30 @@
 Menu "Macros"
 
 	Submenu "HvG Lab Analysis"
-		"DS initialize", Prev_DS()
+		"AD minis", Init_Analysis()
 	End
 	
 End
 
 //1 ******************************************************************************************************
 
-Function Prev_DS()
+Function Init_Analysis() // First dialogue to get info on wether a new or existing ananlysis is going to be performed
 
 	String /g root:Info="       Start new or retrieve existing analysis?       "
 	newpanel /k=1 /n=What_to_do /w=(300,200,800,350) as "Choose Wisely"
 	Titlebox  TB1, Fsize=16, Frame=0, Anchor=LT, Pos={60,20}, Size={1,1}, Variable= Root:Info
 	Button New, 		Win=What_to_do, Fsize=18, pos={30,85}, Size = {120,40}, Title="New", proc=Instructions_Handling
-	Button Existing, 	Win=What_to_do, Fsize=18, pos={190,85}, Size = {120,40}, Title="Existing", proc=Instructions_Handling//WaveSelectorPanel
+	Button Existing, 	Win=What_to_do, Fsize=18, pos={190,85}, Size = {120,40}, Title="Existing", proc=Instructions_Handling
 	Button Cancel_Select, 		Win=What_to_do, Fsize=18, pos={350,85}, Size = {120,40}, Title="Close", proc=Instructions_Handling
 
 End
-//1 ******************************************************************************************************
+//2 ******************************************************************************************************
 //Checks for the Minis datafolder, creates it if it doesn't exists or asks for the user to properly set it
-Function DFR()//CtrlName):Buttoncontrol
+Function DFR()
 
-//	String CtrlName
-	Svar /sdfr=root: Host_Datafolder
 	KillWindow What_to_do
 	if (datafolderexists("minis")==0 && stringmatch(getdatafolder(1),"*:Minis*")!=1)
 		Newdatafolder/s Minis
-		Host_Datafolder=Getdatafolder(1)
 		DS_initialize()
 	else
 		If (Stringmatch(Getdatafolder(0),"Minis")==1)
@@ -60,12 +57,12 @@ Function DFR()//CtrlName):Buttoncontrol
 
 end
 
-//1 ******************************************************************************************************
+//3 ******************************************************************************************************
 
-Function New_Analysis()//CtrlName):Buttoncontrol
+Function New_Analysis() //Starts a brand new analysis instance (from the main window button "New Analysis")
 
 	//String CtrlName
-	SVar /sdfr=root: Host_Datafolder
+	SVar /sdfr=root:Analysis_Parameters Host_Datafolder
 	Variable i
 	String DF_Name="Minis"
 	Host_Datafolder=getdatafolder(1)
@@ -85,59 +82,64 @@ Function New_Analysis()//CtrlName):Buttoncontrol
 
 End
 
-//3 ******************************************************************************************************
-// Initial values for the analysis parameters
+//4 ******************************************************************************************************
+// Initial values for the analysis parameters - sored in the Root:
 Function DS_initialize()
 	
 	String This_DF=getdatafolder(1)
 	Setdatafolder Root:
-	variable /G 	G_mininumber=			0
-	variable /G 	G_sweeps=				1
-	variable /G 	G_threshold=			-14e-12
-	variable /G 	G_signalwindow=			10
-	variable /G 	G_noisewindow=			25
-	variable /G 	G_stepsize=				3
-	variable /G 	G_showtime=			0
-	variable /G 	G_jump=				170
-	variable /G 	G_pointnumber=			0
-	variable /G 	G_Rise_Tau=			0.6
-	variable /G 	G_Decay_Tau=			0.00017
-	variable /G 	G_Mini_Size=			150
-	variable /G 	G_Decay_time=			50 
-	variable /G 	G_Baseline=				50
-	variable /G 	G_Bin_Size_Freq= 		0.001
-	variable /G 	G_Num_BIn_Freq= 		30
-	variable /G 	G_Bin_Size_Amp= 		-5e-12
-	variable /G 	G_Num_BIn_Amp= 		50
-	variable /G 	G_Bin_Size_Char=		1e-12
-	variable /G 	G_Num_BIn_Char=		50
-	variable /G 	G_Bin_Size_Rise=		10e-6
-	variable /G 	G_Num_BIn_Rise=		50
-	variable /G 	G_Bin_Size_Decay=		10e-6
-	variable /G 	G_Num_BIn_Decay=		50
-	Variable /G G_Tolerance=			0.6
-	Variable /G F1_Low=100
-	Variable /G F1_High=500
-	Variable /G F2_Low=200
-	Variable /G F2_High=1000
-	Variable /G Threshold_dec =0.4e-12
-	Variable /G Jump_dec = 20
-	Variable /G Noise_dec = 50
-	Variable /G Step_dec =5
-	String/g Host_Datafolder = This_DF
+	If (datafolderexists("Analysis_Parameters"))
+		Setdatafolder Analysis_Parameters
+	else
+		Newdatafolder /S Analysis_Parameters
+	endif		
+	variable /G 	G_mininumber			=	0
+	variable /G 	G_sweeps				=	1
+	variable /G 	G_threshold			=	-14e-12
+	variable /G 	G_signalwindow		=	10
+	variable /G 	G_noisewindow		=	25
+	variable /G 	G_stepsize			=	3
+	variable /G 	G_showtime			=	0
+	variable /G 	G_jump					=	170
+	variable /G 	G_pointnumber		=	0
+	variable /G 	G_Rise_Tau			=	0.6
+	variable /G 	G_Decay_Tau			=	0.00017
+	variable /G 	G_Mini_Size			=	150
+	variable /G 	G_Decay_time			=	50 
+	variable /G 	G_Baseline			=	50
+	variable /G 	G_Bin_Size_Freq		=	0.001
+	variable /G 	G_Num_BIn_Freq		=	30
+	variable /G 	G_Bin_Size_Amp		=	-5e-12
+	variable /G 	G_Num_BIn_Amp		=	50
+	variable /G 	G_Bin_Size_Char		=	1e-12
+	variable /G 	G_Num_BIn_Char		=	50
+	variable /G 	G_Bin_Size_Rise		=	10e-6
+	variable /G 	G_Num_BIn_Rise		=	50
+	variable /G 	G_Bin_Size_Decay	=	10e-6
+	variable /G 	G_Num_BIn_Decay		=	50
+	Variable /G G_Tolerance			=	0.6
+	Variable /G F1_Low					=	100
+	Variable /G F1_High				=	500
+	Variable /G F2_Low					=	200
+	Variable /G F2_High				=	1000
+	Variable /G Threshold_dec 		=	0.4e-12
+	Variable /G Jump_dec 				=	20
+	Variable /G Noise_dec 			=	50
+	Variable /G Step_dec 				=	5
+	String/g Host_Datafolder 		=	This_DF
 	Dowindow /K Minicontroller
 	Setdatafolder Host_Datafolder
 	Minicontroller()
 	
 Endmacro
 
-//4 ******************************************************************************************************
+//5 ******************************************************************************************************
 // Well, kill all results, right?
 Function DS_killallresults()
 
 	string the_wavelist,currentwana
 	variable i
-	SVar /sdfr=root: Host_Datafolder, Isolated_path	
+	SVar /sdfr=root:Analysis_Parameters Host_Datafolder, Isolated_path	
 	String List=Tracenamelist("Analysis_Minis#Mini_Wave",",",1)
 	Execute "Removefromgraph/z /W=Analysis_Minis#Mini_Wave  "+removeending(List)	
 	List=Tracenamelist("Analysis_Minis#Data_Display",",",1)
@@ -157,7 +159,7 @@ Function DS_killallresults()
 
 Endmacro
 
-//******************************************************************************************************
+//6******************************************************************************************************
 // kills the progression window in case it is opened (due to an error or something)
 Function Kill_Child_Win()
 	
@@ -171,29 +173,25 @@ Function Kill_Child_Win()
 	
 End
 
-//******************************************************************************************************
+//7******************************************************************************************************
 // Mini detection starts here
 Function DS_isolateminis()
 
 	silent 1
 	Kill_Child_Win()
-	SVar /sdfr=root: Host_Datafolder
-	variable avg_noise, noise_SD, avg_signal, wavenumpoints, i, events, wavenumber, timestamp, threshold
-	string   currentwana
-	nvar /sdfr=root: G_noisewindow, G_signalwindow, G_stepsize, G_sweeps, G_threshold, G_jump, G_Mini_Size, G_Decay_Time, G_Baseline
-	Variable Percent_One
-	String Progress
+	SVar /sdfr=root:Analysis_Parameters Host_Datafolder
+	variable avg_noise, noise_SD, avg_signal, wavenumpoints, i, events, wavenumber, timestamp, threshold, Percent_One
+	string   currentwana, Progress
+	nvar /sdfr=root:Analysis_Parameters G_noisewindow, G_signalwindow, G_stepsize, G_sweeps, G_threshold, G_jump, G_Mini_Size, G_Decay_Time, G_Baseline//, G_Curr_Amp, G_Curr_Decay, G_mininumber	 
 	Setdatafolder $Host_Datafolder
 	print "**********---------Start Isolation---------**********"
 	make /N=0 /O a_Timestamp
-	//make /N=0 /O a_Threshold
 	Dowindow /W=Analysis_minis Data_Display
 	Wave Minis
 	if (V_Flag==1)
 		Execute "removefromgraph /W=Analysis_minis#Data_Display "+removeEnding(RemoveFromlist("a_Timestamp",wavelist("*",",","Win:Analysis_minis#Data_Display"),","))
 	Endif
 	ControlInfo /W=Analysis_Minis Which_Wave
-	
 	currentwana = S_Value
 	if (waveexists($currentwana)==0)
 		Print "Wave not found. Please select a wave for analysis" 
@@ -217,18 +215,15 @@ Function DS_isolateminis()
 	ControlINfo /W=Analysis_minis Positive
 	Variable Absolute=V_Value
 	do //inside the actual sweep
-	//analyse signal- and noisewindows		
 		wavestats /M=1 /Q /R=[i-G_noisewindow, i] $currentwana
 		avg_noise = V_avg
-		//noise_SD= V_sdev
-		wavestats /Q /M=1 /R=[i+5, i +5+ G_signalwindow] $currentwana //I am trying the average of a small cluster of points a little ahead of the serach loop
+		wavestats /Q /M=1 /R=[i+20, i +20+ G_signalwindow] $currentwana //I am trying the average of a small cluster of points a little ahead of the serch loop
 		avg_signal = V_avg
 		threshold=avg_signal-avg_noise
-		
 		//mini detected?
 		Switch (Absolute)
 			Case 0:
-				if (threshold<=G_threshold)// && backwards2(i, $currentwana))
+				if (threshold<=G_threshold)
 					wave sourcewave = $currentwana
 					wavestats/q /r=[i-G_Baseline,i+(G_Mini_Size-G_Baseline)/2] $currentwana
 					events += 1
@@ -237,9 +232,7 @@ Function DS_isolateminis()
 						Wavestats/q /M=1 /r=[i-G_Baseline, i+G_Mini_Size] $currentwana
 						timestamp = v_minloc
 						InsertPoints (events-1),1, a_Timestamp
-						a_Timestamp[(events-1)]=timestamp
-
-						
+						a_Timestamp[(events-1)]=timestamp					
 					Else
 						events -= 1	
 					endif
@@ -247,7 +240,7 @@ Function DS_isolateminis()
 				endif
 				Break
 			Case 1:
-				if (threshold>=ABS(G_threshold))// && backwards2(i, $currentwana))
+				if (threshold>=ABS(G_threshold))
 					wave sourcewave = $currentwana
 					wavestats/q /r=[i-G_Baseline,i+(G_Mini_Size-G_Baseline)/2] $currentwana
 					events += 1
@@ -256,9 +249,7 @@ Function DS_isolateminis()
 						Wavestats/q /M=1 /r=[i-G_Baseline, i+G_Mini_Size] $currentwana
 						timestamp = v_maxloc
 						InsertPoints (events-1),1, a_Timestamp
-						a_Timestamp[(events-1)]=timestamp
-						//InsertPoints (events-1),1, a_Threshold
-						//a_Threshold[(events-1)]=sourcewave[i+5]		
+						a_Timestamp[(events-1)]=timestamp		
 					Else
 						events -= 1	
 					endif
@@ -288,7 +279,6 @@ Function DS_isolateminis()
 	make /N=(events) /O a_Amplitude, a_Risetime, a_Decaytime, a_Charge, a_Baseline, a_RiseTime_loc
 	make /N=((events),2) /O Risetime_Xs
 	print "**********---------End Isolation---------**********"
-	print "                                                     ---                                                  "	
 	DS_analyseminis()
 	Killwindow /z Analysis_minis#Mini_Detection
 	if (strlen (wavelist("*",";","Win:Analysis_minis#Data_Display"))>0)
@@ -298,51 +288,15 @@ Function DS_isolateminis()
 	Display_and_Modify()
 	Wave Minis, All_Baseline_Vals
 	Setscale/p x,0,(deltax($CurrentWana)),"s",Minis,All_Baseline_Vals
-	SetVariable G_mininumber, Win=Analysis_Minis, Limits={0,(Numpnts(a_Amplitude)-1),1}
 	Killwaves/Z Progression_Minis,Progression_txt, Degrees, res, w_coef,W_sigma, C_Wana//, AVGs
 	Filter_by_Decay()
-	//Filter_By_Rise_Kink(deltax($currentwana))
 	Make_AVG_PSC("Final")
-	String Final= Update_Output_Text()//"# of PSCs : "+num2str(numpnts(a_amplitude))+"\rAvg amplitude: "+SAmp_Final+StringFromlist(0,Unity(a_Amplitude,1,0))+"A\rAvg frequency: "+Num2Str(   NumPnts(a_Amplitude)/(a_Timestamp[Numpnts(a_Timestamp)-1]-a_Timestamp[0]))+" Hz"
+	String Final= Update_Output_Text()
 	TitleBox  Results Win=Analysis_Minis, Pos={20, 480}, Title=Final, Fsize=14, Frame=0
-	
+
 End
 
-// ******************************************************************************************************
-
-Static Function backwards2(i, Wv) //double checks if the found threshold is real
-	Variable i
-	Wave Wv
-	nvar /sdfr=root: G_noisewindow, G_signalwindow, G_stepsize,G_jump,G_threshold
-	variable avg_noise, avg_signal
-	
-	wavestats /Q /M=1 /R=[i+G_jump,i+G_jump+G_noisewindow] Wv
-	avg_noise = V_avg
-	wavestats /Q /M=1 /R=[i+5, i +5+ G_signalwindow] Wv //I am trying the average of a small cluster of points a little ahead of the serach loop
-	avg_signal = V_avg
-	
-
-	Controlinfo Positive 
-	Variable absolute=V_Value
-	
-	
-	Switch (absolute)
-		Case 1:
-		if ((avg_signal-avg_noise)>=ABS(G_threshold))
-			return 1
-		endif
-		break
-		Case 0:
-		if ((avg_signal-avg_noise)<=G_threshold)
-			return 1
-		endif
-		break
-		Return 0
-	Endswitch
-end
-
-
-// ******************************************************************************************************
+// 8 ******************************************************************************************************
 // Updates the info on the detected minis displyes in the "Detection" tab
 
 Function /S Update_Output_Text()
@@ -358,14 +312,15 @@ Function /S Update_Output_Text()
 	
 End
 
-// ******************************************************************************************************
+// 9 ******************************************************************************************************
 //Averages and displays the average PSCs
 
 Function Make_AVG_PSC(ControlName)//:ButtonControl
 
 	String ControlName
-	
-	if (waveexists(Avg_d)!=1)
+	if (StringMatch(ControlName,"Force"))
+		Align_by_dAdt(1)
+		else
 		Align_by_dAdt(0)
 	endif
 	If (StringMatch(Controlname,"AVG_PSC")==1)
@@ -374,7 +329,7 @@ Function Make_AVG_PSC(ControlName)//:ButtonControl
 	EndIF
 	
 end
-// ******************************************************************************************************
+// 10 ******************************************************************************************************
 //Manages the comparison between the sliding average and the trace itself and reports a positive or negative match
 
 Function Detect_Mini(Evt_Num, Sourcewave, mEPSC, Mini_size, Peak_Pnt,Force_EPSC_detection)
@@ -382,7 +337,7 @@ Function Detect_Mini(Evt_Num, Sourcewave, mEPSC, Mini_size, Peak_Pnt,Force_EPSC_
 	Variable Evt_Num
 	Wave Sourcewave, mEPSC
 	Variable Mini_Size, Peak_Pnt, Force_EPSC_detection
-	NVar /sdfr=root: G_Mini_Size, G_Baseline, G_Decay_Tau, G_Rise_Tau
+	NVar /sdfr=root:Analysis_Parameters G_Mini_Size, G_Baseline, G_Decay_Tau, G_Rise_Tau
 	ControlINfo /W=Analysis_minis Positive
 	Variable Absolute=V_Value
 	Controlinfo /W=Analysis_Minis Use_Template
@@ -406,7 +361,6 @@ Function Detect_Mini(Evt_Num, Sourcewave, mEPSC, Mini_size, Peak_Pnt,Force_EPSC_
 	endif
 	variable ok=Sliding_Avg(x2pnt(sourcewave,Peak_Pnt),Sourcewave)
 	if (ok>0)
-	
 		If (Evt_Num==1 || waveexists(Minis)==0)
 			Make/o/n=(G_Mini_Size) Minis
 			Make/o/n=(10) All_Baseline_Vals
@@ -427,7 +381,7 @@ Function Detect_Mini(Evt_Num, Sourcewave, mEPSC, Mini_size, Peak_Pnt,Force_EPSC_
 	endif
 
 end
-// ******************************************************************************************************
+// 11 ******************************************************************************************************
 //Compares the sliding template to the trace to find (or not) the event
 
 Function Sliding_Avg(Start_Pnt,Sourcewave)
@@ -435,8 +389,7 @@ Function Sliding_Avg(Start_Pnt,Sourcewave)
 	Variable Start_Pnt
 	Wave SourceWave
 	variable i,k, Begin_Match, Finish_Match, Percent_Mini_Size,offset, scale,minim
-	NVar /sdfr=root: G_Mini_Size, G_Tolerance,G_noisewindow
-	//tau=2e-4
+	NVar /sdfr=root:Analysis_Parameters G_Mini_Size, G_Tolerance,G_noisewindow
 	Make/o/n=1 res
 	Make/o/n=1 crit
 	Percent_Mini_Size=floor(G_Mini_Size/5)
@@ -478,7 +431,7 @@ Function Sliding_Avg(Start_Pnt,Sourcewave)
 	
 End
 
-// ******************************************************************************************************
+// 12 ******************************************************************************************************
 //Extracts all the parameters from the detected event 
 
 Function DS_analyseminis()
@@ -488,9 +441,8 @@ Function DS_analyseminis()
 	variable peakpn, twentypn, wavenumber, xposition, endofminipn, Percent_One, Mini_Wave_Size, Start_Fit_Pt
 	string the_wavelist, fitwindowname,Progress
 	wave a_Amplitude, a_Risetime, a_Decaytime, a_Charge, mininumbers,a_Baseline,Minis, C_Wana, Risetime_Xs
-	nvar /sdfr=root: G_Mini_Size, G_Baseline, G_Decay_time
-	SVar /sdfr=root: Host_Datafolder
-	Nvar /sdfr=root: DeltaX_Main_Wave
+	nvar /sdfr=root:Analysis_Parameters G_Mini_Size, G_Baseline, G_Decay_time, DeltaX_Main_Wave
+	SVar /sdfr=root:Analysis_Parameters Host_Datafolder
 	print "**********---------Start Analysis---------**********"
 	Dowindow /K Monitor 
 	SetDatafolder $Host_Datafolder
@@ -507,11 +459,11 @@ Function DS_analyseminis()
 		C_Wana=Minis[p][wavenumber]
 		Controlinfo /W=Analysis_Minis Which_Wave
 		setscale /p x,0,Deltax($S_Value),"s",c_Wana	
-		wavestats /Q /M=1 /R=[0,10] C_Wana //find baseline Original: 450
+		wavestats /Q /M=1 /R=[0,10] C_Wana 
 		baseline = V_avg
 		wavestats /Q /M=1 C_Wana 
 		If (Absolute==0)
-		peak = V_min; peakpn =V_MinRowLoc// x2Pnt(C_Wana, V_minloc) //* 1e05
+		peak = V_min; peakpn =V_MinRowLoc
 		amplitude = peak - baseline
 		Else
 		peak = V_max; peakpn =V_MaxRowLoc
@@ -532,13 +484,7 @@ Function DS_analyseminis()
 		findlevel /Q /R=[0, peakpn] C_Wana, eightypercent 
 		a_Risetime[xposition]= (V_LevelX - twentypn)
 		Risetime_Xs[xposition][q]={{twentypn},{V_LevelX}}
-		//Risetime_Xs[xposition][q]={{x2pnt(Temp,twentypn)},{x2pnt(Temp,V_LevelX)}}
-
 		//Charge
-		//Duplicate /O C_Wana avgsubtracted
-		//avgsubtracted -= baseline
-		//Integrate avgsubtracted /D=integratedmini
-		//charge = sum (integratedmini)// integratedmini[endofminipn+100] - integratedmini[(twentypn-30)] //original: 300 and 100
 		a_Charge[xposition]= charge(xposition,C_Wana)
 		//Decaytime		
 		If (Absolute==0)
@@ -546,7 +492,7 @@ Function DS_analyseminis()
 		Else
 			eightypercent = baseline-amplitude * 0.8
 		EndIf
-		findlevel /Q /P /R=[peakpn, G_Mini_Size] C_Wana, eightypercent // Original: 490
+		findlevel /Q /P /R=[peakpn, G_Mini_Size] C_Wana, eightypercent 
 		Start_Fit_Pt= round(V_Levelx)
 		If(Wavenumber>0)
 		insertpoints/M=1 Wavenumber, 1, All_Decay_time
@@ -567,16 +513,16 @@ Function DS_analyseminis()
 			SimplePieChart(125,125,100,Progression_Minis,Progression_Txt)
 		EndIf
 		//******		
-			If(Floor(wavenumber/Mini_Wave_Size*100)>(Percent_One+5))
-				Progression_Minis[1]=	100-Floor(wavenumber/Mini_Wave_Size*100)
-				Progression_Minis[0]=	Floor(wavenumber/Mini_Wave_Size*100)
-				SimplePieChart(125,125,100,Progression_Minis,Progression_Txt)	
-				Percent_One=Floor(wavenumber/Mini_Wave_Size*100)
-				Progress=Num2str(Percent_One)+" %"
-				Titlebox Percentage Title=Progress
-				DoUpdate
-				pauseupdate
-			EndIf	
+		If(Floor(wavenumber/Mini_Wave_Size*100)>(Percent_One+5))
+			Progression_Minis[1]=	100-Floor(wavenumber/Mini_Wave_Size*100)
+			Progression_Minis[0]=	Floor(wavenumber/Mini_Wave_Size*100)
+			SimplePieChart(125,125,100,Progression_Minis,Progression_Txt)	
+			Percent_One=Floor(wavenumber/Mini_Wave_Size*100)
+			Progress=Num2str(Percent_One)+" %"
+			Titlebox Percentage Title=Progress
+			DoUpdate
+			pauseupdate
+		EndIf	
 		//******
 		wavenumber += 1
 		xposition += 1
@@ -586,7 +532,7 @@ Function DS_analyseminis()
 	wavestats /Q /M=1 a_amplitude	
 End
 
-// ******************************************************************************************************
+// 13 ******************************************************************************************************
 
 Static function charge(EPSC_num, Wv_ana)
 
@@ -626,7 +572,7 @@ Static function charge(EPSC_num, Wv_ana)
 end
 
 
-// ******************************************************************************************************
+// 14 ******************************************************************************************************
 // Plots the histograms based on the user input
 
 Function DS_plothistograms(Action)
@@ -634,7 +580,7 @@ String Action
 	String Unit
 	variable i
 	wave a_Timestamp,a_Interminitime,a_Risetime,a_Amplitude,a_Decaytime,a_Charge
-	NVar /sdfr=root: G_Bin_Size_Freq, G_Num_BIn_Freq, G_Bin_Size_Amp, G_Num_BIn_Amp, G_Bin_Size_Char, G_Num_BIn_Char,G_Bin_Size_Rise,G_Num_Bin_Rise,G_Bin_Size_Decay,G_Num_Bin_Decay
+	NVar /sdfr=root:Analysis_Parameters G_Bin_Size_Freq, G_Num_BIn_Freq, G_Bin_Size_Amp, G_Num_BIn_Amp, G_Bin_Size_Char, G_Num_BIn_Char,G_Bin_Size_Rise,G_Num_Bin_Rise,G_Bin_Size_Decay,G_Num_Bin_Decay
 	if (numpnts(a_Timestamp)==0)
 		Error_Dialog("Analysis")
 		return 0
@@ -721,29 +667,29 @@ String Action
 
 End
 
-// ******************************************************************************************************
+// 15 ******************************************************************************************************
 
 Function Histogram_Panel_Vars()
 
-	Titlebox Bin_Size_Pan, Win=All_Histograms, Fsize=14, Frame=0, Pos={735, 260}, Title="Bin size", Disable=0
-	Titlebox Num_Bins_Pan, Win=All_Histograms, FSize=14, Frame=0, Pos={817,260}, Title="Num Bins", Disable=0
-	Setvariable Hist_Bin_Freq_Pan, Win=All_Histograms, Pos={760,280}, Size={50,20}, Title="Frequency ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Freq
-	Setvariable Num_Bins_Freq_Pan, Win=All_Histograms,Pos={842,280}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0,Value=root:G_Num_BIn_Freq
-	Setvariable Hist_Bin_Amp_Pan, Win=All_Histograms,Pos={760,305}, Size={50,285}, Title="Amplitude",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Amp
-	Setvariable Num_Bins_Amp_Pan, Win=All_Histograms, Pos={842,305}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Amp
-	Setvariable Hist_Bin_Charge_Pan, Win=All_Histograms, Pos={760,330}, Size={50,20}, Title="Charge (C) ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Char
-	Setvariable Num_Bins_Charge_Pan, Win=All_Histograms,Pos={842,330}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Char
-	Setvariable Hist_Bin_Rise_Pan, Win=All_Histograms,Pos={760,355}, Size={50,20}, Title="Rise (s)   ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Rise
-	Setvariable Num_Bins_Rise_Pan, Win=All_Histograms,Pos={842,355}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Rise
-	Setvariable Hist_Bin_Decay_Pan, Win=All_Histograms,Pos={760,380}, Size={50,20}, Title="Decay (s)  ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Decay
-	Setvariable Num_Bins_Decay_Pan, Win=All_Histograms,Pos={842,380}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Decay
-	Button Update, Win=All_Histograms, pos={680,420},size={120,40},proc=Instructions_Handling, FSize=16, title="Update results"
-	Button Cancel_Pan, Win=All_Histograms, pos={820,420},size={120,40},proc=Instructions_Handling, FSize=16, title="Close"
+	Titlebox Bin_Size_Pan, 				Win=All_Histograms, Fsize=14, Frame=0, Pos={735, 260}, Title="Bin size", Disable=0
+	Titlebox Num_Bins_Pan, 				Win=All_Histograms, FSize=14, Frame=0, Pos={817,260}, Title="Num Bins", Disable=0
+	Setvariable Hist_Bin_Freq_Pan, 	Win=All_Histograms, 	Pos={760,280}, Size={50,20}, Title="Frequency ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Freq
+	Setvariable Num_Bins_Freq_Pan, 	Win=All_Histograms,	Pos={842,280}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0,Value=root:G_Num_BIn_Freq
+	Setvariable Hist_Bin_Amp_Pan, 		Win=All_Histograms,	Pos={760,305}, Size={50,285}, Title="Amplitude",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Amp
+	Setvariable Num_Bins_Amp_Pan, 		Win=All_Histograms, 	Pos={842,305}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Amp
+	Setvariable Hist_Bin_Charge_Pan, 	Win=All_Histograms, 	Pos={760,330}, Size={50,20}, Title="Charge (C) ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Char
+	Setvariable Num_Bins_Charge_Pan, 	Win=All_Histograms,	Pos={842,330}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Char
+	Setvariable Hist_Bin_Rise_Pan, 	Win=All_Histograms,	Pos={760,355}, Size={50,20}, Title="Rise (s)   ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Rise
+	Setvariable Num_Bins_Rise_Pan, 	Win=All_Histograms,	Pos={842,355}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Rise
+	Setvariable Hist_Bin_Decay_Pan, 	Win=All_Histograms,	Pos={760,380}, Size={50,20}, Title="Decay (s)  ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Bin_Size_Decay
+	Setvariable Num_Bins_Decay_Pan, 	Win=All_Histograms,	Pos={842,380}, Size={50,20}, Title=" ",fsize=12, bodywidth=80, Disable=0, Value=root:G_Num_BIn_Decay
+	Button Update, 							Win=All_Histograms, 	pos={680,420}, size={120,40},proc=Instructions_Handling, FSize=16, title="Update results"
+	Button Cancel_Pan, 					Win=All_Histograms, 	pos={820,420}, size={120,40},proc=Instructions_Handling, FSize=16, title="Close"
 
 end
 
-// ******************************************************************************************************
-
+// 16 ******************************************************************************************************
+// Adds the units to each of the values (A, s, V,) and their suffixe (mini, micro, nano, pico, etc...)
 Function/S Unity(TestWave, Choice, Pnt_Num)
 
 	Wave TestWave
@@ -786,36 +732,21 @@ Function/S Unity(TestWave, Choice, Pnt_Num)
 	
 End
 
-// ******************************************************************************************************
-
-//Function pressdelete() //-Original 
+// 17 ******************************************************************************************************
+//manages adding or deleting a current from the detection results
 Function pressdelete(Ctrl_name)
 
 	String Ctrl_name
-	nvar /sdfr=root: G_mininumber
+	nvar /sdfr=root:Analysis_Parameters G_mininumber
 	variable pointnumber=G_mininumber
 	wave a_Amplitude, a_Risetime, a_Decaytime, a_Charge, a_Timestamp, mininumbers,a_Baseline,Amps, Minis,Start_Fit, All_Decay_time, Risetime_Xs
 	if (numpnts(Minis)==0)
 		Error_Dialog("Analysis")
 		return 0
 	endif
-	Svar /sdfr=root: Host_Datafolder
+	Svar /sdfr=root:Analysis_Parameters Host_Datafolder
 	Setdatafolder $Host_Datafolder	
-	//Deletepoints /M=1 pointnumber,1, minis
-	//Deletepoints /M=1 pointnumber,1,All_Baseline_Vals
-	//Deletepoints /M=1 pointnumber,1,All_Decay_time
-	//Deletepoints pointnumber,1,a_Amplitude
-	//Deletepoints pointnumber,1,a_Risetime
-	//Deletepoints pointnumber,1,Risetime_Xs
-	//Deletepoints pointnumber,1,a_Decaytime
-	//Deletepoints pointnumber,1,a_Charge
-	//Deletepoints pointnumber,1,a_Timestamp
-	//Deletepoints pointnumber,1,a_Threshold
-	//Deletepoints pointnumber,1,a_Baseline
-	//Deletepoints pointnumber,1,Amps
-	//Deletepoints pointnumber, 1,Start_Fit
-	Adjust_Points(pointnumber)
-	
+	Adjust_Points(pointnumber) //deletes or add points in the arrays	
 	SetVariable G_mininumber, Limits={0,(Numpnts(a_Amplitude)-1),1}
 	String Final= Update_Output_Text()
 	TitleBox  Results Win=Analysis_Minis, Title=Final
@@ -828,15 +759,17 @@ Function pressdelete(Ctrl_name)
 			pressnext("Pressprevious")
 			Break
 	endswitch
+	
 End
 
-// ******************************************************************************************************
-
+// 18 ******************************************************************************************************
+//Displays next event in the Analysis tab
 Function pressnext(ctrlName)
 
 	String ctrlName
 	Variable Limits=0
-	nvar /sdfr=root: G_mininumber
+	nvar /sdfr=root:Analysis_Parameters G_mininumber 
+	Variable G_Curr_Amp, G_Curr_Decay
 	if (G_mininumber<0)
 		G_mininumber=0
 	endif
@@ -844,8 +777,8 @@ Function pressnext(ctrlName)
 	if (numpnts(Minis)==0)
 		Error_Dialog("Analysis")
 		return 0
-	endif
-	SetVariable G_mininumber, Limits={0,(dimsize(minis,1)-1),1}
+	endif	
+	SetVariable G_mininum, Limits={0,(dimsize(minis,1)-1),1}	
 	if (G_Mininumber>=(dimsize(minis,1)-1))
 		If (G_Mininumber>=(dimsize(minis,1)-1) || Stringmatch(CtrlName,"pressNext")==1)
 			G_Mininumber=dimsize(minis,1)-1
@@ -900,15 +833,18 @@ Function pressnext(ctrlName)
 	SAmp_Final =RemoveEnding (SAmp_Final, "e-"+stringfromlist(( itemsinlist(SAmp_Final,"-")-1),SAmp_Final,"-"))
 	VAriable Corrected_AVG=round(Str2Num(SAmp_Final)*Str2Num(StringFromlist(1,Thsi_Unit)))
 	SAmp_Final=Num2Str(Corrected_AVG)
-	String Notes= "Amp: "+SAmp_Final+Stringfromlist(0,Thsi_Unit)+"A \rDecay: "+Unity_Time(G_mininumber)
-	titlebox LEG, win=Analysis_minis,frame=0,title=Notes, Fsize=14//, Disable=0
-	
 	Align_by_dAdt(1)
+	String Title_Valdisplay
+	[G_Curr_Amp,Title_Valdisplay]=SuperRound(a_Amplitude[G_Mininumber])//trunc(a_Amplitude[G_Mininumber]*1e12)
+	ValDisplay Curr_amp,   Value= _Num:G_Curr_Amp, Title="Amplitude ("+Title_Valdisplay+"A):"//a_amplitude[G_mininumber]
+	
+	[G_Curr_Decay,Title_Valdisplay]=SuperRound(a_decaytime[G_Mininumber])
+	ValDisplay Curr_Decay,   Value= _Num:G_Curr_Decay, Title="Decay ("+Title_Valdisplay+"s):"
 
 End
 
-// ******************************************************************************************************
-
+// 19 ******************************************************************************************************
+//Returns time unit
 Function /S Unity_Time(Pnt_num)
 
 	Variable Pnt_Num
@@ -922,19 +858,19 @@ Function /S Unity_Time(Pnt_num)
 		Unit=Num2Str(Pnt*1000000)+" us"
 	Endif
 	IF (Strlen(Unit)>0)
-	Return Unit
+		Return Unit
 	Else
-	Return "??"
+		Return "??"
 	Endif
 End
 
-// ******************************************************************************************************
+// 20******************************************************************************************************
 
-///--------------------------- This part of the Function is intended to highlight the points ---------------------------
-//------------------------------whenever you click them at the "Amplitudes" tab in the ----------------------------
-// --------------------------------------"Analysis_minis" window----------------------------------------
+///--------------------------- This part of the Function is intended to highlight the markers in the miniature graph-----------
+//-------------------------------------whenever you click them at the "Amplitudes" tab in the ----------------------------
+// ---------------------------------------------------"Analysis_minis" window----------------------------------------
 
-
+//Hook functin is used to tell the mouse position and its location when clicked.
 Function Hook(s)
 
 	STRUCT WMWinHookStruct &s
@@ -948,14 +884,12 @@ Function Hook(s)
 			return 0
 	endif
 	switch(s.eventCode)
-	case 5: // Mouseclick
-	
+	case 5: // Mouseclick	
 		Getmouse /w=Analysis_Minis#Data_Display
 		if (V_left<530 && V_Top<400 && V_left>0 && V_Top>0)
 			If (State==4) //yes, shift's pressed
 				 Force_EPSC(Wv_Name, Str2Num( stringbykey( "HITPOINT",tracefrompixel (V_left+340, V_Top+36, Wave_name))))
-			endif
-			
+			endif			
 			if (strlen(tracefrompixel (V_left+340, V_Top+36,"Window:Analysis_Minis#Data_Display;Only:Amps"))>0)
 				Modify_Point(STR2NUM( stringbykey( "HITPOINT",tracefrompixel (V_left+340, V_Top+36, "only:Amps"))),1)		
 			endif
@@ -965,23 +899,18 @@ Function Hook(s)
 
 End
 
-// ******************************************************************************************************
-
-Function EPSC_Num(ctrlName,varNum,varStr,varName) : SetVariableControl
-
-	String ctrlName
-	Variable varNum
-	String varStr,varName
-	NVar /sdfr=root: G_Mininumber
-	Modify_Point(G_mininumber,1)
-
-End
-
-// ******************************************************************************************************
-
+// 21 ******************************************************************************************************
+// Modifies the color of the marker to highligh a specific one in the graph display
 Function Modify_Point(Point_x,Set_Mod)
 
 	Variable Point_x, Set_Mod
+	Svar /sdfr=root:Analysis_Parameters Host_Datafolder
+	Variable Different_DF
+	if (stringmatch(Host_Datafolder,Getdatafolder(1))!=1) //if user is in a different datafolder than that of the analysis
+		DFREF This_DF = GetDataFolderDFR() //get the current DF address
+		execute "Setdatafolder "+Host_Datafolder //sets analysis DF
+		Different_DF=1 
+	endif	
 	make/o/n=(1,3) /t W_WaveList=""
 	getwindow Analysis_Minis#Data_Display wavelist
 	if (strlen(W_WaveList[0][1])==0 || numtype(strlen(W_WaveList[0][1]))==2)
@@ -989,30 +918,31 @@ Function Modify_Point(Point_x,Set_Mod)
 	endif
 	wave Amps, Minis, All_Baseline_Vals, Pt_time_Amp, All_Decay_time, Start_Fit
 	Variable Selected_Point=Point_x
-	NVar /sdfr=root: Highlighted_Point, G_miniNumber
+	NVar /sdfr=root:Analysis_Parameters Highlighted_Point, G_miniNumber
 	Setactivesubwindow Analysis_Minis#Data_Display
 	Wave Amps
 	ModifyGraph /W=Analysis_Minis#Data_Display rgb(Amps[Highlighted_Point])=(0,0,52224)
 	ModifyGraph  /W=Analysis_Minis#Data_Display rgb(Amps[Selected_Point])=(65280,0,0)
 	Highlighted_Point=Selected_Point
 	G_Mininumber=Selected_Point
-	Slide_Graph(Selected_Point)
-	
+	Slide_Graph(Selected_Point)	
 	If (Set_Mod==1)	
 		PressNext("Modify_Point")
 	EndIf
-	
+	if (Different_DF)
+		Setdatafolder This_DF //back to previous DF
+	endif
 end
 
-// ******************************************************************************************************
+// 22 ******************************************************************************************************
 
 Function Slide_Graph(Selected_Point)
 
 	Variable Selected_Point
+	Variable Start, Finish, Delta
 	Wave a_Timestamp
 	String Axis_Data= axisinfo ("Analysis_Minis#Data_Display", "Bottom")
-	String Axis_Range, Comm2, Axis_Name, Pt1, Pt2, Pt1a, Pt2a
-	Variable Start, Finish, Delta
+	String Axis_Range, Comm2, Axis_Name, Pt1, Pt2, Pt1a, Pt2a	
 	Axis_Range= stringbykey("SETAXISCMD",Axis_Data,":",";")
 	String expr="([[:alpha:]]+) ([[:alpha:]]+) ([[:digit:]]+).([[:digit:]]+),([[:digit:]]+).([[:digit:]]+)"
 	SplitString/E=(expr) Axis_Range, Comm2, Axis_Name, Pt1, Pt1a, Pt2,Pt2a
@@ -1027,26 +957,25 @@ Function Slide_Graph(Selected_Point)
 
 End
 
-// ******************************************************************************************************
-
+// 23 ******************************************************************************************************
+//I forgot what it does....
 function Display_and_Modify()
 
-	Variable /g ROOT:Highlighted_Point
+	Variable /g ROOT:Analysis_Parameters:Highlighted_Point
 	Setwindow Analysis_Minis, hook(WMWinHookStruct)=hook, hookevents=0
 	Setactivesubwindow Analysis_Minis#Data_Display
 
 end
 
-// ******************************************************************************************************
-
+// 24 ******************************************************************************************************
+// Adds the manually-chosen EPSC to the array 
 Function Force_EPSC(Wave_name, EPSC_Ref_Pnt)
 
 	String Wave_Name
 	Variable EPSC_Ref_Pnt
 	Variable i, EPSC_Num,eightypercent, twentypercent, amplitude, decaytime,twentypn, peakpn, baseline, peak, PeaKVal, PeakLocation,PeakLocation_Row
 	Wave a_timestamp, Minis, A_amplitude, Amps,a_Baseline,All_Baseline_Vals,a_Risetime,a_Charge,a_Decaytime, Start_Fit, All_Decay_time, RiseTime_Xs
-	NVar /sdfr=root: G_Baseline, G_Mini_Size,G_Decay_Time, G_mini_Number
-	
+	NVar /sdfr=root:Analysis_Parameters G_Baseline, G_Mini_Size,G_Decay_Time, G_mini_Number	
 	Wave temp=$Wave_Name
 	findlevel /q a_timestamp, pnt2x(temp, EPSC_Ref_Pnt)
 	if (numtype(V_Levelx)!=2 && V_Levelx>0)
@@ -1054,27 +983,23 @@ Function Force_EPSC(Wave_name, EPSC_Ref_Pnt)
 	else
 	EPSC_Num=0
 	endif
-
-	Wavestats /q /r=[EPSC_Ref_Pnt-G_Baseline, EPSC_Ref_Pnt+G_Mini_Size] temp
-	
+	Wavestats /q /r=[EPSC_Ref_Pnt-G_Baseline, EPSC_Ref_Pnt+G_Mini_Size] temp //stats on the wave portion containing the putative EPSC
 	ControlInfo /W=Analysis_Minis Positive
 	If (V_value==0)
 		PeakVal=V_min
 		PeakLocation=V_minloc
 		PeakLocation_Row=V_minrowloc
-		if (Detect_Mini(EPSC_Num, temp, mEPSC, G_Mini_Size, V_Minloc,1)==0)
+		if (Detect_Mini(EPSC_Num, temp, mEPSC, G_Mini_Size, V_Minloc,1)==0) //checks if it is within the PSC specs
 			return 0
 		endif
 	Else
 		PeakVal=V_max
 		PeakLocation=V_maxloc
 		PeakLocation_Row=V_maxrowloc
-		if (Detect_Mini(EPSC_Num, temp, mEPSC, G_Mini_Size, V_maxloc,1)==0)
+		if (Detect_Mini(EPSC_Num, temp, mEPSC, G_Mini_Size, V_maxloc,1)==0) //checks if it is within the PSC specs
 			return 0
 		endif
-	EndIF
-
-
+	EndIF	
 	if (waveexists(Start_Fit)==0)
 		Make /n=1 Start_Fit
 	endif
@@ -1087,9 +1012,9 @@ Function Force_EPSC(Wave_name, EPSC_Ref_Pnt)
 	if (waveexists(All_Decay_time)==0)
 		Make/o /n=(ceil(G_Mini_size/3)) All_Decay_time
 	endif
-
+	//Event found, add it to all the other waves:
 	Insertpoints EPSC_Num,1, a_timestamp,Amps,a_Baseline,A_amplitude,a_Risetime,a_Charge,a_Decaytime, Start_Fit
-	Insertpoints /M=1 EPSC_Num,1, All_Decay_time	// Minis,All_Baseline_Vals ,
+	Insertpoints /M=1 EPSC_Num,1, All_Decay_time	
 	a_timestamp[EPSC_Num]=PeakLocation
 	//a_Threshold[EPSC_num]=0//figure out what to do to calculate threshold here!
 	Amps[EPSC_Num]=PeakVal
@@ -1111,7 +1036,6 @@ Function Force_EPSC(Wave_name, EPSC_Ref_Pnt)
 	findlevel /Q /R=[PeakLocation_Row-G_Baseline, peakpn] Temp, eightypercent 
 	a_Risetime[EPSC_Num]= (V_LevelX - twentypn)	
 	Risetime_Xs[EPSC_Num][q]={{x2pnt(Temp,twentypn)},{x2pnt(Temp,V_LevelX)}}
-
 	//Decaytime
 	make /O /N=3 W_coef
 	Make /O /N=1 W_fitConstants
@@ -1119,30 +1043,29 @@ Function Force_EPSC(Wave_name, EPSC_Ref_Pnt)
 	eightypercent = peakval - amplitude * 0.8
 	findlevel /q /R=[peakpn, peakpn+G_Mini_Size*2] Temp, twentypercent
 	twentypn=V_Levelx
-	findlevel /R=[peakpn, peakpn+G_Mini_Size*2] Temp, eightypercent 
+	findlevel /q /R=[peakpn, peakpn+G_Mini_Size*2] Temp, eightypercent 
 	CurveFit/Q /NTHR=0 /N /W=2 exp_XOffset  Temp[X2Pnt(Temp,twentypn), X2Pnt(Temp,V_LevelX)] /D /NWOK		
 	All_Decay_time[][EPSC_Num]=W_coef[0]+W_coef[1]*exp(-(((p+X2Pnt(Temp,twentypn))*Deltax(Temp))-W_fitConstants[0])/W_coef[2])
 	Start_Fit[EPSC_Num]=X2Pnt(Temp,twentypn)-Ref_Decay
 	a_Decaytime[EPSC_Num]= W_coef(2)
 	Wave_name="Fit_"+Wave_name
-	removefromgraph /Z /W=Analysis_Minis#Data_Display $Wave_name
-	
-	Make_AVG_PSC("Force")
-	
+	removefromgraph /Z /W=Analysis_Minis#Data_Display $Wave_name	
+	Make_AVG_PSC("Force") //Averages and displays the average PSCs		
 	String Final= Update_Output_Text()
 	TitleBox  Results Win=Analysis_Minis, Title=Final
-	PressNext("Force")
+	PressNext("Force") //Displays the detected event in the Analysis tab
 
 end
 // /////////// ------------End of the "Highlight Point" part --------------// ///////////
 
 // ///////////-------------Panel interface management--------------////////////////
+// 25 - Builds the GUI
 Function Minicontroller() : Panel
 
 	PauseUpdate; Silent 1		// building window...
 	Dowindow /K Analysis_Minis
 	NewPanel/K=1 /W=(500,576,1400,1176) /N=Analysis_Minis
-	vars()
+	vars() //Initializes the variables to their default values
 	SetDrawLayer /w=Analysis_Minis UserBack
 	DrawRect /W=Analysis_Minis 10,36,310,350
 	DrawRect /W=Analysis_Minis 10,360,310,420
@@ -1159,22 +1082,22 @@ Function Minicontroller() : Panel
 	Modifygraph /W=Analysis_Minis#EPSC_Temp Frameinset=1, Framestyle=4	
 	Modifygraph /W=Analysis_Minis#Data_Display Frameinset=1, Framestyle=4
 	display /host=Analysis_Minis /N=Deconv /W=(300,46,870,500) /hide=1
-	Tab_Display(0,1,1)
-	Tabcontrol Main, Size={880,550},pos={5,0}//,proc=Content
+	Tab_Display(0,1,1) //hides or shows elements in each tab
+	Tabcontrol Main, Size={880,550},pos={5,0}
 	Tabcontrol Main, tablabel(1) ="Analyze", proc=Tab_Mngt
 	Tabcontrol Main, tablabel(0) ="Detect", proc=Tab_Mngt
 	Tabcontrol Main, tablabel(2) ="Deconvolution", proc=Tab_Mngt
-	Set_Ana_PArams(0)
+	Set_Ana_PArams(0) //Loads the analysis parameters
 
 end
 
-// ******************************************************************************************************
-
+// 26 ******************************************************************************************************
+//Deals with the graphic aspect of the tabs - rectangles and drawing environments
 Function Tab_Mngt(tab):Tabcontrol
 
 	Struct WMTabControlAction &tab
  	SetDrawLayer /K UserBack
- 	NVar /sdfr=root: G_Mininumber
+ 	NVar /sdfr=root:Analysis_Parameters G_Mininumber
 	Switch (tab.tab)
 		Case 0:
 			SetDrawLayer/w=Analysis_Minis /K Overlay
@@ -1207,60 +1130,22 @@ Function Tab_Mngt(tab):Tabcontrol
 
 end
 
-// ******************************************************************************************************
-
-Function DIsplay_mini_Graph()
-
-	Wave a_Baseline,a_amplitude
-	Wave Amps_Time=a_timestamp
-	pauseupdate
-	
-	ControlInfo /W=Analysis_Minis Which_Wave
-
-	if (Strlen(S_Value)==0 || Stringmatch(S_Value, "No Waves Selected")==1)
-		beep
-		Print "********************************* No Waves seleced for analysis. Choose wisely. *********************************"
-		abort
-	endif
-	Wave Test=$S_Value
-	removefromgraph /z /W=Analysis_Minis#Data_Display test
-	AppendToGraph /W=Analysis_Minis#Data_Display test
-	execute "ModifyGraph /W=Analysis_Minis#Data_Display rgb("+S_Value+")=(0,0,0)"
-
-	if (waveexists(a_amplitude) && waveexists(Amps_Time))
-		Duplicate/o a_Amplitude, Amps
-		ControlINfo /W=Analysis_minis Positive
-		If (V_Value==0)
-			Amps+=a_Baseline
-		Else
-			Amps=a_Baseline-a_Amplitude
-		EndIf
-		removefromgraph /z /W=Analysis_Minis#Data_Display Amps
-		AppendToGraph/W=Analysis_Minis#Data_Display Amps vs Amps_Time
-		ModifyGraph /W=Analysis_Minis#Data_Display mode(Amps)=3,rgb(Amps)=(0,0,52224),marker(Amps)=19
-	endif
-	doupdate
-	
-end
-
-// ******************************************************************************************************
-
+// 27 ******************************************************************************************************
+//Deals with the tabs and their elements - hide and show
 Function Tab_Display(Hide_Display, Hide_Analyse, Hide_Deconv)	//1=hide
 
 	Variable Hide_Display
 	Variable Hide_Analyse
 	Variable Hide_Deconv
-	Svar /sdfr=root: Wave_2P, Host_Datafolder
-	titlebox 			Manual, 						Disable=Hide_Display	
-	titlebox 			Manual, 						Disable=Hide_Display
+	Svar /sdfr=root:Analysis_Parameters Wave_2P, Host_Datafolder
  	Button 			isolate, 						Disable=Hide_Display
 	Button 			Select_Waves, 				Disable=Hide_Display
 	SetVariable 		setvar1, 						Disable=Hide_Display
 	SetVariable 		signalwindow, 				Disable=Hide_Display
 	SetVariable 		noisewindow, 				Disable=Hide_Display
 	SetVariable 		stepsize, 					Disable=Hide_Display
-	SetVariable 		jump, 						Disable=Hide_Display
-	SetVariable 		Size, 						Disable=Hide_Display
+	SetVariable 		jump, 							Disable=Hide_Display
+	SetVariable 		Size, 							Disable=Hide_Display
 	SetVariable 		Decay, 						Disable=Hide_Display
 	SetVariable 		Baseline, 					Disable=Hide_Display
 	SetVariable 		Tolerance,					Disable=Hide_Display
@@ -1280,8 +1165,8 @@ Function Tab_Display(Hide_Display, Hide_Analyse, Hide_Deconv)	//1=hide
 	CheckBox 			Positive, 					Disable=Hide_Display
 	Checkbox 			Use_Template, 				Disable=Hide_Display, pos= {23,320}
 	Button 			Read,							Disable=Hide_Display
-	Button 			Write,						Disable=Hide_Display
-	If (Stringmatch(Wave_2P, "No Waves Selected")!=1)
+	Button 			Write,							Disable=Hide_Display
+	If (numtype(Strlen(Wave_2P))!=2 && Stringmatch(Wave_2P, "No Waves Selected")!=1)
 		ValDisplay 	signalwindow_Val, 			Disable=Hide_Display
 		ValDisplay 	noisewindow_Val, 			Disable=Hide_Display
 		ValDisplay 	stepsize_Val, 				Disable=Hide_Display
@@ -1315,44 +1200,77 @@ Function Tab_Display(Hide_Display, Hide_Analyse, Hide_Deconv)	//1=hide
 	Button 		Delete, 							Disable=Hide_Analyse
 	Titlebox 		Bin_Size, 						Disable=Hide_Analyse
 	Titlebox 		Num_Bins, 						Disable=Hide_Analyse
-	Titlebox 		Auto, 								Disable=Hide_Analyse
-	TitleBox 		LEG,								Disable=Hide_Analyse
-	SetVariable G_mininumber,		Value=root:G_mininumber,			Disable=Hide_Analyse
-	Setvariable Hist_Bin_Freq, 		Value=root:G_Bin_Size_Freq,		Disable=Hide_Analyse
-	Setvariable Num_Bins_Freq, 		Value=root:G_Num_BIn_Freq,		Disable=Hide_Analyse
-	Setvariable Hist_Bin_Amp, 		Value=root:G_Bin_Size_Amp,		Disable=Hide_Analyse
-	Setvariable Num_Bins_Amp, 		Value=root:G_Num_BIn_Amp,		Disable=Hide_Analyse	
-	Setvariable Hist_Bin_Charge, 	Value=root:G_Bin_Size_Char,		Disable=Hide_Analyse
-	Setvariable Num_Bins_Charge, 	Value=root:G_Num_BIn_Char,		Disable=Hide_Analyse
-	Setvariable Hist_Bin_Rise,		Value=root:G_Bin_Size_Rise,		Disable=Hide_Analyse
-	Setvariable Num_Bins_Rise,		Value=root:G_Num_BIn_Rise,		Disable=Hide_Analyse	
-	Setvariable Hist_Bin_Decay,		Value=root:G_Bin_Size_Decay,	Disable=Hide_Analyse
-	Setvariable Num_Bins_Decay,		Value=root:G_Num_BIn_Decay,		Disable=Hide_Analyse
+	SetVariable G_mininum,				Value=root:Analysis_Parameters:G_mininumber,			Disable=Hide_Analyse
+	ValDisplay Curr_amp,							Disable=Hide_Analyse
+	ValDisplay Curr_Decay,						Disable=Hide_Analyse
+	Setvariable Hist_Bin_Freq, 			Value=root:Analysis_Parameters:G_Bin_Size_Freq,		Disable=Hide_Analyse
+	Setvariable Num_Bins_Freq, 			Value=root:Analysis_Parameters:G_Num_BIn_Freq,		Disable=Hide_Analyse
+	Setvariable Hist_Bin_Amp, 			Value=root:Analysis_Parameters:G_Bin_Size_Amp,		Disable=Hide_Analyse
+	Setvariable Num_Bins_Amp, 			Value=root:Analysis_Parameters:G_Num_BIn_Amp,			Disable=Hide_Analyse	
+	Setvariable Hist_Bin_Charge, 		Value=root:Analysis_Parameters:G_Bin_Size_Char,		Disable=Hide_Analyse
+	Setvariable Num_Bins_Charge, 		Value=root:Analysis_Parameters:G_Num_BIn_Char,		Disable=Hide_Analyse
+	Setvariable Hist_Bin_Rise,			Value=root:Analysis_Parameters:G_Bin_Size_Rise,		Disable=Hide_Analyse
+	Setvariable Num_Bins_Rise,			Value=root:Analysis_Parameters:G_Num_BIn_Rise,		Disable=Hide_Analyse	
+	Setvariable Hist_Bin_Decay,			Value=root:Analysis_Parameters:G_Bin_Size_Decay,		Disable=Hide_Analyse
+	Setvariable Num_Bins_Decay,			Value=root:Analysis_Parameters:G_Num_BIn_Decay,		Disable=Hide_Analyse
 	if (Hide_Deconv==0)
 		Setactivesubwindow Analysis_Minis#Deconv
 	endif
-	Setwindow Analysis_Minis#EPSC_Temp 		hide=Hide_Deconv
-	Setwindow Analysis_Minis#Deconv	 		hide=Hide_Deconv
+	Setwindow Analysis_Minis#EPSC_Temp 			hide=Hide_Deconv
+	Setwindow Analysis_Minis#Deconv	 			hide=Hide_Deconv
 	Titlebox Filter1, 								Disable=Hide_Deconv
 	Titlebox Filter2, 								Disable=Hide_Deconv
-	SetVariable Filter1_Low, 					Disable=Hide_Deconv
-	SetVariable Filter1_High,					Disable=Hide_Deconv
-	SetVariable Filter2_Low, 					Disable=Hide_Deconv
+	SetVariable Filter1_Low, 						Disable=Hide_Deconv
+	SetVariable Filter1_High,						Disable=Hide_Deconv
+	SetVariable Filter2_Low, 						Disable=Hide_Deconv
 	SetVariable Filter2_High, 					Disable=Hide_Deconv
-	Button Run_Deconv, 							Disable=Hide_Deconv
+	Button Run_Deconv, 								Disable=Hide_Deconv
 	Button Filter_by_Deconv,						Disable=Hide_Deconv
 	Checkbox F1, 									Disable=Hide_Deconv
 	Checkbox F2, 									Disable=Hide_Deconv
 	SetVariable Threshold_dec, 					Disable=Hide_Deconv
 	SetVariable Jump_dec,							Disable=Hide_Deconv
 	SetVariable Noise_dec, 						Disable=Hide_Deconv
-	SetVariable Step_dec, 						Disable=Hide_Deconv
+	SetVariable Step_dec, 							Disable=Hide_Deconv
 	TitleBox  /Z Dec_Num_evts, 					Disable=Hide_Deconv
 
 end
 
-// ******************************************************************************************************
+// 28******************************************************************************************************
+// Displays trace and individual markers in the graph
+Function DIsplay_mini_Graph()
 
+	Wave a_Baseline,a_amplitude
+	Wave Amps_Time=a_timestamp
+	pauseupdate	
+	ControlInfo /W=Analysis_Minis Which_Wave
+	if (Strlen(S_Value)==0 || Stringmatch(S_Value, "No Waves Selected")==1)
+		beep
+		Print "********************************* No Waves seleced for analysis. Choose wisely. *********************************"
+		abort
+	endif
+	Wave Test=$S_Value
+	execute "removefromgraph /z /W=Analysis_Minis#Data_Display "+S_Value//test
+	AppendToGraph /W=Analysis_Minis#Data_Display test
+	execute "ModifyGraph /W=Analysis_Minis#Data_Display rgb("+S_Value+")=(0,0,0)"
+	if (waveexists(a_amplitude) && waveexists(Amps_Time))
+		Duplicate/o a_Amplitude, Amps
+		ControlINfo /W=Analysis_minis Positive
+		If (V_Value==0)
+			Amps+=a_Baseline
+		Else
+			Amps=a_Baseline-a_Amplitude
+		EndIf
+		removefromgraph /z /W=Analysis_Minis#Data_Display Amps
+		AppendToGraph/W=Analysis_Minis#Data_Display Amps vs Amps_Time
+		ModifyGraph /W=Analysis_Minis#Data_Display mode(Amps)=3,rgb(Amps)=(0,0,52224),marker(Amps)=19
+	endif
+	doupdate
+	
+end
+
+// 29 ******************************************************************************************************
+//Creates an outside box to enable wave selection - see MakeListIntoWaveSelector
 Function WaveSelectorPanel(CtrlName)
 
 	String CtrlName
@@ -1371,12 +1289,12 @@ Function WaveSelectorPanel(CtrlName)
 			MakeListIntoWaveSelector(panelName, "WaveSelectorList", content = WMWS_DataFolders)//showWhat)
 			PopupMenu sortKind, pos={155,240}, Size={20,35}, title="Sort By"
 			MakePopupIntoWaveSelectorSort(panelName, "WaveSelectorList", "sortKind")	
-			Button Existing_Exp,pos={9,330-Button_Offset},size={110,20},title="Done", Proc=Instructions_Handling//Done	
+			Button Existing_Exp,pos={9,330-Button_Offset},size={110,20},title="Done", Proc=Instructions_Handling
 		else		
 			MakeListIntoWaveSelector(panelName, "WaveSelectorList", content = showWhat)
 			PopupMenu sortKind, pos={155,240}, Size={20,35}, title="Sort Waves By"
 			MakePopupIntoWaveSelectorSort(panelName, "WaveSelectorList", "sortKind")	
-			Button Done,pos={9,330-Button_Offset},size={110,20},title="Done", Proc=Instructions_Handling//Done
+			Button Done,pos={9,330-Button_Offset},size={110,20},title="Done", Proc=Instructions_Handling
 			SetVariable Output_wave_name,  Disable=2, pos={210,290}, Bodywidth=250,  FSize=16, Title=" ", Value=_Str:"Conc_Pulse"
 			CheckBox Enable_output_Name_Change, Pos={10,270}, Title="Custom output wave name: ", Value=0, Fsize=12, proc=Enable_Input_WaveName
 		Endif	
@@ -1384,8 +1302,8 @@ Function WaveSelectorPanel(CtrlName)
 	
 End
 
-// ******************************************************************************************************
-
+// 30******************************************************************************************************
+// Deals witht the Checkbos in the wave selector window
 Function Enable_Input_WaveName(CtrlName, Check):CheckBoxControl
 
 	String CtrlName
@@ -1398,18 +1316,20 @@ Function Enable_Input_WaveName(CtrlName, Check):CheckBoxControl
 
 end
 
-// ******************************************************************************************************
-
+// 31******************************************************************************************************
+// Specifies all the elements in the tabs in the main window
 Function vars()
 
 	String Current_Folder
-	String /G root:Wave_2P="No Waves Selected"//"No Waves Selected"
+	String /G root:Analysis_Parameters:Wave_2P="No Waves Selected"
 	Current_Folder = getdatafolder(1)
-	Svar /sdfr=root: Wave_2P
+	Svar /sdfr=root:Analysis_Parameters Wave_2P
+	Nvar /sdfr=root:Analysis_Parameters G_mininumber
 	Variable H_Pos_An_panel, V_Pos_An_Panel
-	titlebox Version_num, pos={820,5},frame=0,title= "Version 3.2", Fsize=12
-	CheckBox Positive,			Pos={20,260},Title="Detect Positive Peaks", VAlue=0,proc=template
-	Checkbox Use_Template, 	pos= {23,320}, Title="Use data template", value=0, proc=template
+	wave a_amplitude, a_DecayTime
+	titlebox Version_num, pos={820,5},frame=0,title= "Version 3.3.1", Fsize=12
+	CheckBox Positive,			Pos={20,260},Title="Detect Positive Peaks", VAlue=0,proc=I_template
+	Checkbox Use_Template, 	pos= {23,320}, Title="Use data template", value=0, proc=I_template
 	Button Select_Waves,pos={20,285},size={120,25}, fColor=(16385,49025,65535), fStyle=1, FSize=16,proc= Instructions_Handling,title="Select Waves"//, Fsize=18
 	SetVariable Which_Wave,pos={60,440}, Bodywidth=300, Frame=0,  Size={250,40}, FSize=16, Title=" ",BarBackColor=0, Disable=2
 	Execute "SetVariable Which_Wave, Value=_Str:"+num2char(34)+Wave_2P+num2char(34)
@@ -1418,38 +1338,40 @@ Function vars()
 	Button killallresults,pos={176,315},size={120,20},title="Kill all results",fColor=(65535,16385,16385), Disable=1,proc=Instructions_Handling//presskillall
 	Button killallresults,help={"!!!Kills all results in the \"mini\" folder!!!"}
 	H_Pos_An_panel=10
-	SetVariable setvar1,pos={H_Pos_An_panel+50,76},size={120,15},title="Threshold (Amps)", Bodywidth=70, labelBack=(65535,65535,65535),limits={-inf,inf,-1e-12},value= root:G_threshold,  proc=Set_Value, Disable=1
-		ValDisplay setvar1_Val,pos={210,76},Title="= (pA)",  Bodywidth=40, Disable=1
-	SetVariable signalwindow,pos={H_Pos_An_panel+50,99},size={120,15},title="Signal win  (pts)  ", proc=Set_Value, BodyWidth=70, value= root:G_signalwindow,  labelBack=(65535,65535,65535), Disable=1
-		ValDisplay signalwindow_Val,pos={210,99},Title="= (ms)",  Bodywidth=40, Disable=1
-	SetVariable noisewindow,pos={H_Pos_An_panel+50,122},size={120,15},title="Noise win  (pts)   ",value= root:G_noisewindow,  labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
-		ValDisplay noisewindow_Val,pos={210,122},Title="= (ms)",  Bodywidth=40, Disable=1
-	SetVariable stepsize,pos={H_Pos_An_panel+50,145},size={120,15},title="Step size (pts)    ",value= root:G_stepsize, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
-		ValDisplay stepsize_Val,pos={210,145},Title="= (ms)",  Bodywidth=40, Disable=1
-	SetVariable jump,pos={H_Pos_An_panel+50,168},size={120,15},title="Jump (pts)          ",value= root:G_jump, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
-		ValDisplay jump_Val,pos={210,168},Title="= (ms)",  Bodywidth=40, Disable=1
-	SetVariable Size,pos={H_Pos_An_panel+50,191},size={120,15},title="EPSC size (pts)    ",value=root:G_Mini_Size, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
-		ValDisplay Size_Val,pos={210,191},Title="= (ms)",  Bodywidth=40, Disable=1
-	SetVariable Decay,pos={H_Pos_An_panel+50,237},size={120,15},title="Decay time(pts)  ",value= root:G_Decay_time, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
-		ValDisplay Decay_Val,pos={210,237},Title="= (ms)",  Bodywidth=40, Disable=1
-	SetVariable Baseline,pos={H_Pos_An_panel+50,214},size={120,15},title="Baseline (pts)      ",value= root:G_Baseline, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
-		ValDisplay Baseline_Val,pos={210,214},Title="= (ms)",  Bodywidth=40, Disable=1		
-	SetVariable Tolerance, pos={176,260},size={120,20},title="Tolerance",value=root:G_Tolerance, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, limits={0.1,1,0.05}, Disable=1
+	SetVariable setvar1,pos={H_Pos_An_panel+50,76},size={120,15},title="Threshold (Amps)", Bodywidth=70, labelBack=(65535,65535,65535),limits={-inf,inf,-1e-12},value= root:Analysis_Parameters:G_threshold,  proc=Set_Value, Disable=1
+		ValDisplay setvar1_Val,pos={210,76},Title="= (pA)",  Bodywidth=40, Frame=0, Disable=1
+	SetVariable signalwindow,pos={H_Pos_An_panel+50,99},size={120,15},title="Signal win  (pts)  ", proc=Set_Value, BodyWidth=70, value= root:Analysis_Parameters:G_signalwindow,  labelBack=(65535,65535,65535), Disable=1
+		ValDisplay signalwindow_Val,pos={210,99},Title="= (ms)",  Bodywidth=40, Frame=0, Disable=1
+	SetVariable noisewindow,pos={H_Pos_An_panel+50,122},size={120,15},title="Noise win  (pts)   ",value= root:Analysis_Parameters:G_noisewindow,  labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
+		ValDisplay noisewindow_Val,pos={210,122},Title="= (ms)",  Bodywidth=40, Frame=0, Disable=1
+	SetVariable stepsize,pos={H_Pos_An_panel+50,145},size={120,15},title="Step size (pts)    ",value= root:Analysis_Parameters:G_stepsize, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
+		ValDisplay stepsize_Val,pos={210,145},Title="= (ms)",  Bodywidth=40, Frame=0, Disable=1
+	SetVariable jump,pos={H_Pos_An_panel+50,168},size={120,15},title="Jump (pts)          ",value= root:Analysis_Parameters:G_jump, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
+		ValDisplay jump_Val,pos={210,168},Title="= (ms)",  Bodywidth=40, Frame=0, Disable=1
+	SetVariable Size,pos={H_Pos_An_panel+50,191},size={120,15},title="EPSC size (pts)    ",value=root:Analysis_Parameters:G_Mini_Size, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
+		ValDisplay Size_Val,pos={210,191},Title="= (ms)",  Bodywidth=40, Frame=0, Disable=1
+	SetVariable Decay,pos={H_Pos_An_panel+50,237},size={120,15},title="Decay time(pts)  ",value= root:Analysis_Parameters:G_Decay_time, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
+		ValDisplay Decay_Val,pos={210,237},Title="= (ms)",  Bodywidth=40, Frame=0, Disable=1
+	SetVariable Baseline,pos={H_Pos_An_panel+50,214},size={120,15},title="Baseline (pts)      ",value= root:Analysis_Parameters:G_Baseline, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, Disable=1
+		ValDisplay Baseline_Val,pos={210,214},Title="= (ms)",  Bodywidth=40, Frame=0, Disable=1		
+	SetVariable Tolerance, pos={176,260},size={120,20},title="Tolerance",value=root:Analysis_Parameters:G_Tolerance, labelBack=(65535,65535,65535), proc=Set_Value, BodyWidth=70, limits={0.1,1,0.05}, Disable=1
 	Button pressnext,		pos={245,40},size={60,25},Fsize=16, title="Next",help={"shows next mini"}, Disable=1, 			proc=Instructions_Handling
 	Button pressprevious,	pos={175,40},size={60,25},FSize=16, title="Prev",help={"shows previous mini"}, Disable=1, 	proc=Instructions_Handling
 	Button delete,pos={175,67},size={130,25},FSize=16, title="Delete mini",help={"deletes mEPSC number set in the left panel"}, Disable=1,proc=Instructions_Handling//pressdelete
-	SetVariable G_mininumber,pos={175,94},size={130,25},title="PSC #",fSize=16,value= root:G_mininumber, Disable=1, Proc=EPSC_Num, Limits={0,10000,1}
+	SetVariable G_mininum,pos={175,94},size={130,25},title="PSC #",fSize=16,value=G_Curr_Amp, Disable=1, Proc=EPSC_Num, Limits={0,10000,1}
+		ValDisplay Curr_amp,   pos={253, 160}, Title="Amplitude (pA): ", Bodywidth=40, Frame=0, Disable=1
+		ValDisplay Curr_Decay, pos={227, 180}, Title="Decay (ms): ",     Bodywidth=40, Frame=0, Disable=1
 	titlebox Create_EPSC, pos={170,370},frame=0,title= "Display EPSC Template", Fsize=12, Disable=1
 	Button Create_EPSC_Template,pos={196,387},size={80,30},title="GO", Fsize=16, Proc=Instructions_Handling//Display_EPSC_Template
 	Button Create_EPSC_Template,help={"rejects mEPSC, which do not pass filter criteria, and deletes parameters from all waves"}, Disable=1
-	Button Display_Wave pos={155,430},size={150,30},title="Display Data Trace", Fsize=16, proc=Instructions_Handling//pressisolate
+	Button Display_Wave pos={155,430},size={150,30},title="Display Data Trace", Fsize=16, proc=Instructions_Handling
 
-	SetVariable setdecaylow,pos={22,365},size={140,16},title="Rise Tau [s]   ",fSize=12,limits={-inf,inf,0.00001},value=root:G_Rise_Tau, Disable=1, proc=Set_Value
-	SetVariable setdecayhigh,pos={22,390},size={140,16},title="Decay Tau [s]",fSize=12,limits={-inf,inf,0.00001},value= root:G_Decay_Tau, Disable=1, proc=Set_Value
-	Button Read, pos={20,42}, Size={125,30}, Title="Load  Parameters", fSize=14, Disable=1, Proc=Instructions_Handling//Analysis_Params
+	SetVariable setdecaylow,pos={22,365},size={140,16},title="Rise Tau [s]   ",fSize=12,limits={-inf,inf,0.00001},value=root:Analysis_Parameters:G_Rise_Tau, Disable=1, proc=Set_Value
+	SetVariable setdecayhigh,pos={22,390},size={140,16},title="Decay Tau [s]",fSize=12,limits={-inf,inf,0.00001},value= root:Analysis_Parameters:G_Decay_Tau, Disable=1, proc=Set_Value
+	Button Read, pos={20,42}, Size={125,30}, Title="Load  Parameters", fSize=14, Disable=1, Proc=Instructions_Handling
 	Button Write, pos={175,42}, Size={125,30}, Title="Save  Parameters", fSize=14,  Disable=1,Proc=Instructions_Handling
 	Button AVG_PSC,pos={175,125},size={130,30},proc=Instructions_Handling,title="Display PSC Average", Disable=1
-	Button plot,pos={215,270},size={97,50},title="Plot \rhistograms",proc=Instructions_Handling//pressplot
+	Button plot,pos={215,270},size={97,50},title="Plot \rhistograms",proc=Instructions_Handling
 	Button plot,help={"plots all results in histograms"}, Disable=1
 	H_Pos_An_panel=108
 	V_Pos_An_Panel=270
@@ -1476,8 +1398,7 @@ Function vars()
 	Button Shrink_y, Win=Analysis_Minis, pos={315,430},size={25,40},Title="\Z18-", proc=Axis_Range, Disable=0
 	Button Reset_y,Win=Analysis_Minis, pos={315,365},size={25,25},fColor=(65280,21760,0),Title="\Z16\f01®", proc=Axis_Range, Disable=0	
 	Button Reset_ALL,Win=Analysis_Minis, pos={315,470},size={25,25},fColor=(52224,0,0),Title="\Z16\f01®", proc=Axis_Range, Disable=0
-	TitleBox LEG, win=Analysis_Minis, Pos={175,170}, Disable=1
-	Button New_Analysis, Win=Analysis_Minis, pos={5, 560}, Size={140,30}, FSize=18, Title="New analysis", proc=Instructions_Handling//New_Ananlysis
+	Button New_Analysis, Win=Analysis_Minis, pos={5, 560}, Size={140,30}, FSize=18, Title="New analysis", proc=Instructions_Handling
 	Button Existing, Win=Analysis_Minis, pos={175, 560}, Size={220,30}, FSize=18, Title="Go to existing analysis", proc=WaveSelectorPanel
 	Button Cancel_it, Win=Analysis_Minis, pos={795, 560}, Size={90,30}, FSize=18, Title="Close", proc=Instructions_Handling
 	//Deconvolution panel	
@@ -1485,17 +1406,17 @@ Function vars()
 	Titlebox Filter1, FSize=16, Frame=0, Pos={20,405}, Title="Signal filter", Disable=1
 	CheckBox F1,			Pos={110,410}, VAlue=0, title=""
 	Checkbox F1, help={"Sets the low pass filter for the data trace"}
-	SetVariable Filter1_Low,pos={20,430},size={150,16},title="End pass band",fSize=12,limits={-inf,inf,0.00001},value=root:F1_Low, Disable=1
-	SetVariable Filter1_High,pos={20,460},size={150,16},title="Reject Band",fSize=12,limits={-inf,inf,0.00001},value= root:F1_High	
+	SetVariable Filter1_Low,pos={20,430},size={150,16},title="End pass band",fSize=12,limits={-inf,inf,0.00001},value=root:Analysis_Parameters:F1_Low, Disable=1
+	SetVariable Filter1_High,pos={20,460},size={150,16},title="Reject Band",fSize=12,limits={-inf,inf,0.00001},value= root:Analysis_Parameters:F1_High	
 	Titlebox Filter2, FSize=16, Frame=0, Pos={170,405}, Title="Deconv filter", Disable=1
 	CheckBox F2			Pos={265,410}, VAlue=0, title=""	
 	Checkbox F2, help={"Sets the low pass filter for the deconvolved trace"}
-	SetVariable Filter2_Low,pos={200,430},size={80,16},title=" ",fSize=12,limits={-inf,inf,0.00001},value=root:F2_Low, Disable=1
-	SetVariable Filter2_High,pos={200,460},size={80,16},title=" ",fSize=12,limits={-inf,inf,0.00001},value= root:F2_High
-	Button Run_Deconv, pos={20,500}, Size={180,30}, Title="Run Deconvolution", fSize=16, disable=1, proc=Instructions_Handling//Deconvolve
+	SetVariable Filter2_Low,pos={200,430},size={80,16},title=" ",fSize=12,limits={-inf,inf,0.00001},value=root:Analysis_Parameters:F2_Low, Disable=1
+	SetVariable Filter2_High,pos={200,460},size={80,16},title=" ",fSize=12,limits={-inf,inf,0.00001},value= root:Analysis_Parameters:F2_High
+	Button Run_Deconv, pos={20,500}, Size={180,30}, Title="Run Deconvolution", fSize=16, disable=1, proc=Instructions_Handling
 	Button Filter_by_Deconv, pos={220,500}, Size={100,30}, Title="Intersec", fSize=16, disable=1, proc=Instructions_Handling//FIlter result by decovolutionDeconvolve
 
-	Nvar /SDFR=root: Threshold_dec, Jump_dec, Noise_dec, Step_dec
+	Nvar /SDFR=root:Analysis_Parameters Threshold_dec, Jump_dec, Noise_dec, Step_dec
 	SetVariable Threshold_dec ,pos={20,275},size={150,16},title="Threshold",fSize=14, value=Threshold_dec, Disable=1
 	SetVariable Jump_dec ,pos={20,305},size={150,16},title="Jump",fSize=14, value=Jump_dec, Disable=1
 	SetVariable Noise_dec ,pos={20,335},size={150,16},title="Noise",fSize=14, value=Noise_dec, Disable=1
@@ -1503,13 +1424,14 @@ Function vars()
 
 end
 
-// ******************************************************************************************************
-
-Static Function template(CB_Struct) : CheckBoxControl
+// 32 ******************************************************************************************************
+// Makes a template out of the average PSCs already detected - not the best approach... needs work
+Function I_template(CB_Struct) : CheckBoxControl //do not add  "Static" to this function!
 	STRUCT WMCheckboxAction &CB_Struct
 	if (CB_Struct.eventcode!=2 && strlen(CB_Struct.ctrlname)>0)
 		return 0
 	endif
+	abort
 	if (CB_Struct.checked==0)
 		Display_EPSC_Template("void")
 	endif
@@ -1536,14 +1458,15 @@ Static Function template(CB_Struct) : CheckBoxControl
 		EPSC_Template_Ori/=-Minimum
 	endif
 	Duplicate/o EPSC_Template_Ori,EPSC_Template
+	killwaves /z EPSC_Template_Ori
 end
 
-// ******************************************************************************************************
-
+// 33******************************************************************************************************
+// Builds and displays the PSC template according to the values inserted in the main window
 Function Display_EPSC_Template(CtrlName)//:Buttoncontrol
 	
 	String CtrlName
-	NVar /sdfr=root: G_Mini_Size, G_Rise_Tau, G_Decay_Tau
+	NVar /sdfr=root:Analysis_Parameters G_Mini_Size, G_Rise_Tau, G_Decay_Tau
 	Variable Minim, Absolute
 	ControlINfo /W=Analysis_minis Positive
 	Absolute=V_Value
@@ -1579,18 +1502,18 @@ Function Display_EPSC_Template(CtrlName)//:Buttoncontrol
 	endswitch
 end
 
-// ******************************************************************************************************
-
-Function Done(CtrlName)//:ButtonControl
+// 34******************************************************************************************************
+// Retrieves and gives a proper name to the selected wave for analysis.
+Function Done(CtrlName)
 
 	String CtrlName
-	Svar /sdfr=root: Wave_2P, Host_Datafolder
+	Svar /sdfr=root:Analysis_Parameters Wave_2P, Host_Datafolder
 	String panelName = "WaveSelector"
 	String List=WS_SelectedObjectsList("WaveSelector","WaveSelectorList")
 	String This_datafolder, Final_Name, DF_Waves
 	Variable i, Num_Pnts_Max, Wv_Index
 	wave An_Params
-	if (Stringmatch(Ctrlname, "Existing_Exp")==1)
+	if (Stringmatch(Ctrlname, "Existing_Exp")==1) //If if i an existing analysis, the analyzed wave is retrieved alongside its results
 		This_datafolder=Stringfromlist(0,list)
 		Host_Datafolder=This_datafolder
 		IF (Exists ("Host_DataFolder")==0)
@@ -1615,8 +1538,9 @@ Function Done(CtrlName)//:ButtonControl
 		if (V_flag)
 			Setvariable Which_Wave Win=Analysis_Minis , Value=_Str:Final_Name
 		endif
+		wave a_Amplitude, a_Decaytime
 		Minicontroller()
-	Else
+	Else //It's a new analysis and it's necessary to launch the waves selector window
 		String List_Wv=Stringfromlist(0,list)
 		This_datafolder=Removefromlist((Stringfromlist((itemsinlist(List_Wv,":")-1),List_Wv,":")), List_Wv,":")
 		String Wv2P, Final_Destination, Dup_Final_Name
@@ -1631,8 +1555,8 @@ Function Done(CtrlName)//:ButtonControl
 		ControlInfo /W=WaveSelector Output_wave_name // The Wavename will be stored in this SetVariable field
 		Final_Name=S_Value
 		SetDataFolder $This_DataFolder
-		If (Itemsinlist(List)>1)
-			For (i=0;I<itemsinlist(list);i+=1)		
+		If (Itemsinlist(List)>1) //Several waves selected to be concatenated
+			For (i=0;I<itemsinlist(list);i+=1)		//concatenating them all...
 				If (i==0)
 					Wave W1= $Stringfromlist(0,list)
 					Wave W2 = $Stringfromlist(1,list)
@@ -1645,53 +1569,51 @@ Function Done(CtrlName)//:ButtonControl
 				EndIf	
 			EndFor				
 		Else
-			Duplicate/O $Stringfromlist(0,list), Temp
+			Duplicate/O $Stringfromlist(0,list), Temp //Single wave selectd
 		EndIf
-		ControlInfo /W=WaveSelector Enable_Output_Name_CHange
-		If (V_Value==0)
+		ControlInfo /W=WaveSelector Enable_Output_Name_CHange //Custom name for the wave?
+		If (V_Value==0) //
 			If (itemsinlist(list)==1)
-				Final_Name=StringFromList((Itemsinlist(List,":")-1),Stringfromlist(0,list),":")//Removes the folders and subfolders from the list, leaving only the Wavename
+				Final_Name=StringFromList((Itemsinlist(List,":")-1),Stringfromlist(0,list),":")//Removes the folders and subfolders from the string, leaving only the Wavename
 			Else
 				ControlInfo /W=WaveSelector Output_wave_name
 				Final_Name=S_Value
 			endif
 		Endif	
 		ControlInfo /W=WaveSelector Enable_Output_Name_CHange
-		If (Waveexists($Final_Name)==0)
+		If (Waveexists($Final_Name)==0) //Is there a wave with this name already? If yes, it'll be overwritten.
 			Rename Temp, $Final_Name
 		Else
 			Duplicate/o Temp, $Final_Name
-			Killwaves/z Temp
+			Killwaves/z Temp //Do I need to kill it?
 		EndIf
 	//Wave's ready!	
-		if (Stringmatch(This_DataFolder,Host_Datafolder)!=1)
+		if (Stringmatch(This_DataFolder,Host_Datafolder)!=1) //the wave datafolder is different than that of the analysis
 			Final_Destination=Host_Datafolder+final_name
 			This_DataFolder+=final_name
 			Dup_Final_Name=Final_Name+"2"
 			Duplicate/o $Final_Name, $Dup_Final_Name	
 			If (Waveexists($Host_Datafolder+final_name)==1)
-				Killwaves /z $Host_Datafolder+final_name
+				execute "Removefromgraph /Z /W=Analysis_Minis#Data_Display "+final_name
+				execute "Killwaves /z "+Host_Datafolder+final_name
 			Endif
 			MoveWave $This_DataFolder, $Final_Destination
-			If (Itemsinlist(list)>1)
-				Rename $Dup_Final_Name, $Final_Name
-			Else
-				Killwaves /z  $Dup_Final_Name
-			EndIf
+			Rename $Dup_Final_Name, $Final_Name
 		Endif	
 		SetdataFolder $Host_Datafolder
 	Endif
-	NVar /sdfr=root: G_signalwindow,G_noisewindow,G_stepsize,G_jump,G_threshold,G_Mini_Size,G_Decay_time, G_Baseline
+	NVar /sdfr=root:Analysis_Parameters G_signalwindow,G_noisewindow,G_stepsize,G_jump,G_threshold,G_Mini_Size,G_Decay_time, G_Baseline, G_Curr_Amp
 	Wave_2P=Final_Name
-	Execute "ValDisplay  setvar1_Val 		Win=Analysis_Minis, Disable=0 , Value = "+Num2str(G_threshold*1e12)
+	//Update numbers in the main window
+	Execute "ValDisplay  setvar1_Val 			Win=Analysis_Minis, Disable=0 , Value = "+Num2str(G_threshold*1e12)
 	Execute "ValDisplay  signalwindow_Val 	Win=Analysis_Minis, Disable=0 ,Value = "+Num2str(G_signalwindow*Deltax($Wave_2P)*1000)
-	Execute "ValDisplay  noisewindow_Val 	Win=Analysis_Minis, Disable=0, Value = "+Num2str(G_noisewindow*Deltax($Wave_2P)*1000)
+	Execute "ValDisplay  noisewindow_Val 		Win=Analysis_Minis, Disable=0, Value = "+Num2str(G_noisewindow*Deltax($Wave_2P)*1000)
 	Execute "ValDisplay  stepsize_Val 		Win=Analysis_Minis, Disable=0, Value = "+Num2str(G_stepsize*Deltax($Wave_2P)*1000)
-	Execute "ValDisplay  jump_Val 		Win=Analysis_Minis, Disable=0, Value = "+Num2str(G_jump*Deltax($Wave_2P)*1000)
-	Execute "ValDisplay  Size_Val 		Win=Analysis_Minis, Disable=0, Value = "+Num2Str(G_Mini_Size*Deltax($Wave_2P)*1000)
-	Execute "ValDisplay  Decay_Val 		Win=Analysis_Minis, Disable=0, Value = "+Num2Str(G_Decay_time*Deltax($Wave_2P)*1000)
+	Execute "ValDisplay  jump_Val 				Win=Analysis_Minis, Disable=0, Value = "+Num2str(G_jump*Deltax($Wave_2P)*1000)
+	Execute "ValDisplay  Size_Val 				Win=Analysis_Minis, Disable=0, Value = "+Num2Str(G_Mini_Size*Deltax($Wave_2P)*1000)
+	Execute "ValDisplay  Decay_Val 			Win=Analysis_Minis, Disable=0, Value = "+Num2Str(G_Decay_time*Deltax($Wave_2P)*1000)
 	Execute "ValDisplay  Baseline_Val 		Win=Analysis_Minis, Disable=0, Value = "+Num2Str(G_Baseline*Deltax($Wave_2P)*1000)	
-	Execute "SetVariable Which_Wave 	Win=Analysis_Minis, Value=_Str:"+num2char(34)+Final_Name+num2char(34)
+	Execute "SetVariable Which_Wave 			Win=Analysis_Minis, Value=_Str:"+num2char(34)+Final_Name+num2char(34)
 	CheckBox Enable_output_Name_Change Win=WaveSelector,  Value=0
 	Dowindow /k $PanelName
 	Killwaves/z W1b
@@ -1704,12 +1626,12 @@ Function Done(CtrlName)//:ButtonControl
 	Killdatafolder root:Packages
 end
 
-// ******************************************************************************************************
-
+// 35 ******************************************************************************************************
+// Adjusts values in the main window (points to time)
 Function Set_Value(ctrlName,varNum,varStr,varName) : SetVariableControl
 
 	String ctrlName ; Variable varNum ; String varStr ; String varName
-	Nvar /sdfr=root: G_Rise_Tau, G_Decay_Tau
+	Nvar /sdfr=root:Analysis_Parameters G_Rise_Tau, G_Decay_Tau
 	ControlInfo /W=Analysis_Minis Which_Wave
 	StrSwitch(CtrlName)
 		Case "signalwindow":
@@ -1744,70 +1666,65 @@ Function Set_Value(ctrlName,varNum,varStr,varName) : SetVariableControl
 
 End
 
-// ******************************************************************************************************
-
+// 36 ******************************************************************************************************
+// Deals witht the x and y scaling buttons
 Function Axis_Range(ControlName):Buttoncontrol
-String ControlName
-ControlInfo /W=Analysis_Minis Which_Wave
-Wave Test=$S_Value
-Variable Begin_Axis_x, End_Axis_x,Begin_Axis_y, End_Axis_y
-getaxis/q/w=Analysis_Minis#Data_Display bottom
-Begin_Axis_x=V_Min
-End_Axis_x=V_Max
-getaxis/q/w=Analysis_Minis#Data_Display left
-Begin_Axis_y=V_Min
-End_Axis_y=V_Max
-StrSwitch (ControlName)
-	Case "Reset_ALL":
-		Setaxis/A/W=Analysis_Minis#Data_Display
-	break
-	Case "Reset_x":
-		Setaxis /W=Analysis_Minis#Data_Display bottom 0,numpnts(test)*deltax(Test)// Begin_Axis_x,(End_Axis_x-(End_Axis_x/4))
-	break
-	Case "Grow_x":
-		Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x,(End_Axis_x-(End_Axis_x/4))
-	break
-	Case "Shrink_x":
-		Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x,(End_Axis_x+(End_Axis_x/4))
-	break
-	Case "FWD_x":
-		Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x+(End_Axis_x-Begin_Axis_x)/5,End_Axis_x+(End_Axis_x-Begin_Axis_x)/5
-	break
-	Case "BACK_x":
-		Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x-(End_Axis_x-Begin_Axis_x)/5,End_Axis_x-(End_Axis_x-Begin_Axis_x)/5
-	break
-	
-	Case "Reset_y":
-		Setaxis /W=Analysis_Minis#Data_Display left Wavemin(test),Wavemax(test)
-	break
-	Case "Grow_y":
-		Setaxis /W=Analysis_Minis#Data_Display left ( Begin_Axis_y-( Begin_Axis_y/4)),End_Axis_y
-	break
-	Case "Shrink_y":
-		Setaxis /W=Analysis_Minis#Data_Display left ( Begin_Axis_y+( Begin_Axis_y/4)),End_Axis_y
-	break
-	Case "FWD_y":
-		Setaxis /W=Analysis_Minis#Data_Display left Begin_Axis_y+(End_Axis_y-Begin_Axis_y)/5,End_Axis_y+(End_Axis_y-Begin_Axis_y)/5
-	break
-	Case "BACK_y":
-		Setaxis /W=Analysis_Minis#Data_Display left Begin_Axis_y-(End_Axis_y-Begin_Axis_y)/5,End_Axis_y-(End_Axis_y-Begin_Axis_y)/5
-	break
-	
-EndSwitch
+
+	String ControlName
+	ControlInfo /W=Analysis_Minis Which_Wave
+	Wave Test=$S_Value
+	Variable Begin_Axis_x, End_Axis_x,Begin_Axis_y, End_Axis_y
+	getaxis/q/w=Analysis_Minis#Data_Display bottom
+	Begin_Axis_x=V_Min
+	End_Axis_x=V_Max
+	getaxis/q/w=Analysis_Minis#Data_Display left
+	Begin_Axis_y=V_Min
+	End_Axis_y=V_Max
+	StrSwitch (ControlName)
+		Case "Reset_ALL":
+			Setaxis/A/W=Analysis_Minis#Data_Display
+		break
+		Case "Reset_x":
+			Setaxis /W=Analysis_Minis#Data_Display bottom 0,numpnts(test)*deltax(Test)// Begin_Axis_x,(End_Axis_x-(End_Axis_x/4))
+		break
+		Case "Grow_x":
+			Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x,(End_Axis_x-(End_Axis_x/4))
+		break
+		Case "Shrink_x":
+			Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x,(End_Axis_x+(End_Axis_x/4))
+		break
+		Case "FWD_x":
+			Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x+(End_Axis_x-Begin_Axis_x)/5,End_Axis_x+(End_Axis_x-Begin_Axis_x)/5
+		break
+		Case "BACK_x":
+			Setaxis /W=Analysis_Minis#Data_Display bottom Begin_Axis_x-(End_Axis_x-Begin_Axis_x)/5,End_Axis_x-(End_Axis_x-Begin_Axis_x)/5
+		break	
+		Case "Reset_y":
+			Setaxis /W=Analysis_Minis#Data_Display left Wavemin(test),Wavemax(test)
+		break
+		Case "Grow_y":
+			Setaxis /W=Analysis_Minis#Data_Display left ( Begin_Axis_y-( Begin_Axis_y/4)),End_Axis_y
+		break
+		Case "Shrink_y":
+			Setaxis /W=Analysis_Minis#Data_Display left ( Begin_Axis_y+( Begin_Axis_y/4)),End_Axis_y
+		break
+		Case "FWD_y":
+			Setaxis /W=Analysis_Minis#Data_Display left Begin_Axis_y+(End_Axis_y-Begin_Axis_y)/5,End_Axis_y+(End_Axis_y-Begin_Axis_y)/5
+		break
+		Case "BACK_y":
+			Setaxis /W=Analysis_Minis#Data_Display left Begin_Axis_y-(End_Axis_y-Begin_Axis_y)/5,End_Axis_y-(End_Axis_y-Begin_Axis_y)/5
+		break
+	EndSwitch
+
 end
 
 
 //------------------------------End of Panel interface management------------------------------
 
-//_____________________________--Pie Chart for Mini detction--_________________________________
-
+//37 - _____________________________--Pie Chart for Mini detction--_________________________________
+// That cute pie chart telling you the progress of the detection
 Function SimplePieChart(CenterX, CenterY, Radius, Values, Labels)
-	//Potentially useful demonstration function for the associated pie-chart functions
-	//Designed to create a pie chart at the given coordinates and size, from paired text and numeric waves containing the values and labels
-	//Values assumed to represent 100% of data
-	//Wedge "colors" limited to up to 5 shades of gray
-	//Some effort is spent to make the shading work out nicely for arbitrary numbers of wedges
-	//I have been using in the absolute coordinate system, may need some fixing to be coordinate-system agnostic
+
 	Variable CenterX, CenterY, Radius
 	Wave Values
 	Wave /T Labels
@@ -1832,13 +1749,14 @@ Function SimplePieChart(CenterX, CenterY, Radius, Values, Labels)
 	DrawWedge(CenterX, CenterY, 0, Degrees[0], Radius, 1,16019,65535)//36000, 36000, 36000)
 	ArcMidPnt=Degrees[0]/2
 	for (Loop1=0;Loop1<numpnts(Values)-1;Loop1+=1)
-		Color=16000//36000+mod(Loop1+1,NumShades)*(24000/(NumShades-1))
+		Color=16000
 		DrawWedge(CenterX, CenterY, Degrees[Loop1], Degrees[Loop1+1], Radius, 52428,1,1)//Color, Color+10000, Color+30000)
 		ArcMidPnt=(Degrees[Loop1]+Degrees[Loop1+1])/2
 	endfor
 End		
-		
 
+// 38 ******************************************************************************************************
+// Used by the Pie function above
 Function DrawWedge(CenterX, CenterY, StartAngle, EndAngle, Radius, Red, Green, Blue)
 	//Draw a wedge with the given center position through the given angles
 	//Wedges have black line border and the given color
@@ -1864,25 +1782,27 @@ End
 
 //_____________________________--End of Pie Chart for Mini detction--_________________________________
 
+// 39 ******************************************************************************************************
+//removes unrealistic events from the detection. Can be tweaked by used. Shoul I make a panel for this?!
 function Filter_by_Decay()
-
 	String ctrlName
-	nvar /sdfr=root: G_mininumber, G_Threshold
+	nvar /sdfr=root:Analysis_Parameters G_mininumber, G_Threshold
 	variable pointnumber=G_mininumber
 	wave a_Amplitude, a_Risetime, a_Decaytime, a_Charge, a_Timestamp, mininumbers,a_Baseline,Amps, Minis, Start_Fit, All_Decay_time, Risetime_Xs
-	Svar /sdfr=root: Host_Datafolder
+	Svar /sdfr=root:Analysis_Parameters Host_Datafolder
 	Wave a_decaytime,All_Baseline_Vals
 	variable i
-	for (i=0;i<numpnts(a_decaytime);i+=1)
-		if (abs(a_decaytime[i])>0.010 || numtype(a_decaytime[i])==2 || a_decaytime[i]<0.00005 || ABS(a_amplitude[i])<ABS(G_Threshold))
+	for (i=0;i<numpnts(a_decaytime);i+=1) //removes calculated decays
+		if (abs(a_decaytime[i])>0.010 || numtype(a_decaytime[i])==2 || a_decaytime[i]<0.00005)
 			Adjust_Points(i)
 			i-=1
 		endif
 	endfor
+	return 0
 	Wavestats /q a_Risetime
-	for (i=0;i<numpnts(a_Risetime);i+=1)
-		if (a_risetime[i]>V_AVG || a_risetime[i]<0) //V_AVG+V_Sdev/5
-			Adjust_Points(i)
+	for (i=0;i<numpnts(a_Risetime);i+=1) //removes calculated rises
+		if (a_risetime[i]>V_AVG || a_risetime[i]<0) 
+		//	Adjust_Points(i)
 			i-=1
 		endif
 	endfor
@@ -1890,11 +1810,12 @@ function Filter_by_Decay()
 
 end
 
+// 40 ******************************************************************************************************
+// Deltes unwanted events from array
 Function Adjust_Points(i)
 
 		Variable i
 		wave a_Amplitude, a_Risetime, a_Decaytime, a_Charge, a_Timestamp, mininumbers,a_Baseline,Amps, Minis, Start_Fit, All_Decay_time, Risetime_Xs, a_decaytime,All_Baseline_Vals
-
 		Deletepoints /M=1 i,1, minis
 		Deletepoints /M=1 i,1,All_Baseline_Vals
 		Deletepoints /M=1 i,1,All_Decay_time
@@ -1907,11 +1828,12 @@ Function Adjust_Points(i)
 		Deletepoints i,1,a_Baseline
 		Deletepoints i,1,Amps
 		Deletepoints i,1,Start_fit
-		//Deletepoints i,1,a_Threshold
+
 end
 
-
-static Function Align_by_dAdt(Continuum)
+// 41 ******************************************************************************************************
+// Aligns the PSCs for averaging
+ Function Align_by_dAdt(Continuum)
 	Variable Continuum
 	wave a_Amplitude, a_Risetime, RiseTime_Xs, a_Decaytime, a_Charge, a_Timestamp, mininumbers,a_Baseline,Amps, Minis, Start_Fit, All_Decay_time,avg_minis
 	if (waveexists(Minis)!=1)
@@ -1921,7 +1843,6 @@ static Function Align_by_dAdt(Continuum)
 	make /o/n=(dimsize(minis,1)) Max_DIFs
 	make /o/n=(dimsize(minis,1)) Refs=x
 	Make /o/n=(2*dimsize(minis,0)) AVG_d=0
-
 	variable i
 	ControlINfo /W=Analysis_minis Positive
 	Variable Absolute=V_Value
@@ -1929,36 +1850,51 @@ static Function Align_by_dAdt(Continuum)
 		matrixop /o temp=col(minis,i)
 		differentiate temp /D=Temp_DIF
 		wavestats /q temp_DIF
-		if (Absolute)// && v_maxloc!=0 && v_minloc!=0)
+		if (Absolute)
 			Max_DIFs[i]=v_maxloc
 		else
 			Max_DIFs[i]=abs(V_Minloc)
 		endif
 	endfor 
 	i=0
-	
+	wavestats /q Max_DIFs
+	if (Continuum==0)
+		Variable /g dAdt_Bar=v_sdev //sets the bar for eliminating events that have an enormous rise time
+	endif
+	do
+		if (max_difs[i]>dAdt_Bar+v_avg || max_difs[i]<-dAdt_Bar+v_avg || max_difs[i]==0)
+			deletepoints i,1,max_difs
+			deletepoints i,1,Refs		
+			Adjust_Points(i)
+		else
+			i+=1
+		endif
+		if (i>=numpnts(max_difs))
+			break
+		endif
+	while (1)
 	wavestats /q Max_DIFs
 	for (i=0;i<numpnts(max_difs);i+=1)
 		make /o /n=(dimsize(minis,0)) temp=minis[p][i]
 		insertpoints 0,abs(v_max-Max_DIFs[i]),temp
 		AVG_d[0,numpnts(temp)-1]+=temp
-		
 	endfor
 	AVG_d/=numpnts(Max_DIFs)
 	Deletepoints 0,abs(V_max-v_min), AVG_d
 	Deletepoints dimsize(minis,0)-1-abs(V_max-v_min),numpnts(avg_d)-1, AVG_d
 	ControlInfo /W=Analysis_Minis Which_Wave
 	setscale /p x,0,deltax($S_Value),"s",AVG_d
-	killwaves /z temp_dif, refs//,Max_DIFs
+	killwaves /z temp_dif, refs,Max_DIFs
 
 end
 
+// 42 ******************************************************************************************************
 
-Function Analysis_Params(Function_RW)//:ButtonControl
+Function Analysis_Params(Function_RW)
 	String Function_RW
 	Wave An_Params
 	Variable Val
-	Nvar /sdfr=root: G_threshold, G_signalwindow, G_noisewindow, G_stepsize, G_jump, G_Mini_Size, G_Baseline, G_Decay_time, G_Tolerance, G_Rise_Tau, G_Decay_Tau
+	Nvar /sdfr=root:Analysis_Parameters G_threshold, G_signalwindow, G_noisewindow, G_stepsize, G_jump, G_Mini_Size, G_Baseline, G_Decay_time, G_Tolerance, G_Rise_Tau, G_Decay_Tau
 	StrSwitch (Function_RW)
 		Case "Read":
 			LoadWave/O
@@ -2002,11 +1938,12 @@ Function Analysis_Params(Function_RW)//:ButtonControl
 	
 End
 
+// 43 ******************************************************************************************************
 
 Function Set_Ana_PArams(Start)
 	
 	Variable Start
-	NVar /sdfr=root: G_threshold, G_signalwindow, G_noisewindow, G_stepsize, G_jump, G_Mini_Size, G_Baseline, G_Decay_time, G_Tolerance, G_Rise_Tau, G_Decay_Tau
+	NVar /sdfr=root:Analysis_Parameters G_threshold, G_signalwindow, G_noisewindow, G_stepsize, G_jump, G_Mini_Size, G_Baseline, G_Decay_time, G_Tolerance, G_Rise_Tau, G_Decay_Tau
 	String Current_Folder = getdatafolder(1)
 	if (datafolderexists("root:Analysis_Parameters")==0)		
 		NewDataFOlder root:Analysis_Parameters
@@ -2065,6 +2002,7 @@ Function Set_Ana_PArams(Start)
 	Setdatafolder  $Current_Folder
 End
 
+// 44 ******************************************************************************************************
 //PSC deconvolution module
 
 function Deconvolve()
@@ -2083,7 +2021,7 @@ function Deconvolve()
 		Fori_1 = V_Value
 		Controlinfo /w=Analysis_minis Filter1_High
 		Fori_2 = V_Value
-		wave Filtered_PSC=Filter_Wave(PSC_Wv,Fori_1,Fori_2)
+		wave Filtered_PSC=Filter_Wave(PSC_Wv,Fori_1,Fori_2,"F1")
 	else
 		wave Filtered_PSC=PSC_Wv
 	endif
@@ -2108,13 +2046,11 @@ function Deconvolve()
 		Fdec_1 = V_Value
 		Controlinfo /w=Analysis_minis Filter2_High
 		Fdec_2 = V_Value
-		Wave Filtered=Filter_Wave(Filt1,Fdec_1,Fdec_2)
+		Wave Filtered=Filter_Wave(Filt1,Fdec_1,Fdec_2,"F2")
 	else
 		wave Temp_d=Deconv_FFT(EPSC_t,Filtered_PSC)
 		setscale /p x,0,deltax(PSC_Wv),"s",Temp_d
-	endif
-	
-	
+	endif	
 	Controlinfo F2
 	if (V_Value)
 		Duplicate/o Filtered, Deconvolved
@@ -2155,6 +2091,8 @@ function Deconvolve()
 	killwaves /z DEC, DECFFT, Template_FFT, Trace_FFT
 end
 
+// 45 ******************************************************************************************************
+
 static function /wave Deconv_FFT(epsc_T,PSC_Wv)
 	
 	wave epsc_T,PSC_Wv
@@ -2166,7 +2104,7 @@ static function /wave Deconv_FFT(epsc_T,PSC_Wv)
 		deletepoints numpnts(PSC_wv)-mod(numpnts(PSC_wv),100),mod(numpnts(PSC_wv),100),PSC_wv
 		//This if stetement removes the last points of the PSC_wv_Cut beacuse for some reason the FFT function
 		//does not like small broken even numbers and it takes fucking forever to calculate the FFT			
-		//I'd rather sacriice some datapoints than precios minutes of my life.
+		//I'd rather sacrifice some datapoints than precios minutes of my life.
 	endif
 	doupdate
 	FFT/OUT=1/DEST=Trace_FFT PSC_Wv
@@ -2181,25 +2119,42 @@ static function /wave Deconv_FFT(epsc_T,PSC_Wv)
 	
 end
 
-Static Function /wave Filter_Wave(PSC_Wv,low,high) //filters the source wave
+// 46 ******************************************************************************************************
+
+Static Function /wave Filter_Wave(PSC_Wv,low,high,Filter) //filters the source wave
 
 	wave PSC_Wv
 	Variable low
 	Variable high
+	String Filter
 	print "Filtering wave"
-	low/=100000
-	high/=100000
+	low*=deltax(PSC_Wv)
+	high*=deltax(PSC_Wv)
 	Duplicate/O PSC_Wv, filtered; DelayUpdate
 	Make/O/D/N=0 coefs; DelayUpdate
-	FilterFIR/DIM=0/LO={low,high,101}/COEF coefs, filtered
+	try
+		FilterFIR/DIM=0/LO={low,high,101}/COEF coefs, filtered; AbortOnRTE
+	catch
+		String errMessage = GetRTErrMessage()+";"
+		strswitch (Filter)
+			Case "F1":
+				Filter="Signal Filter"
+			Case "F2":
+				Filter="Deconv Filter"
+		endswitch 
+		abort "While performing "+Stringfromlist(0,errMessage)+", the following error occurred: \r\r_"+ Stringfromlist(1,errMessage)+"\r\rReview the filter parameters for "+Filter
+	endtry
 	return filtered
 
 end
 
+// 47 ******************************************************************************************************
+
+
 function Get_Peak(Wv)
 
 	wave Wv
-	Nvar /SDFR=root: Threshold_dec, Jump_dec, Noise_dec, Step_dec
+	Nvar /SDFR=root:Analysis_Parameters Threshold_dec, Jump_dec, Noise_dec, Step_dec
 	make/o/n=1 Peak_Timestamp=0
 	make/o/n=1 Peak_Val=0
 	removefromgraph /z /w=Analysis_minis#Deconv Peak_Val
@@ -2262,12 +2217,14 @@ function Get_Peak(Wv)
 	
 end     
 
+// 48 ******************************************************************************************************
+
 Static Function Filter_by_Deconvolution()
 Variable PSC_num
 wave peak_timestamp,a_timestamp
 Variable i,j,index
-Variable Greater_Wave//=numpnts(peak_timestamp)>numpnts(a_timestamp)?numpnts(peak_timestamp):numpnts(a_timestamp)
-nvar /sdfr=root: G_mininumber
+Variable Greater_Wave
+nvar /sdfr=root:Analysis_Parameters G_mininumber
 	
 	Greater_Wave=numpnts(a_timestamp)
 	Duplicate /o a_timestamp, Intersection_Timestamps
@@ -2294,6 +2251,8 @@ nvar /sdfr=root: G_mininumber
 	
 end
 
+// 49 ******************************************************************************************************
+
 Function progress_bar(progression,wv_num_pnts,button_name)
 
 	Variable progression,wv_num_pnts
@@ -2319,6 +2278,8 @@ Function progress_bar(progression,wv_num_pnts,button_name)
 
 end
 
+// 50 ******************************************************************************************************
+
 Static Function backwards(peak_x, Threshold_dec, Noise_dec, Wv) //double checks if the found threshold is real
 	Variable peak_x
 	Variable Threshold_dec
@@ -2342,9 +2303,11 @@ Static Function backwards(peak_x, Threshold_dec, Noise_dec, Wv) //double checks 
 	endif
 end
 
+// 51 ******************************************************************************************************
+
 Function Trim_by_Deconv()
 	wave Peak_Timestamp, a_Timestamp
-	nvar /sdfr=root: G_mininumber
+	nvar /sdfr=root:Analysis_Parameters G_mininumber
 	variable pointnumber=G_mininumber
 	variable i
 	duplicate/o a_Timestamp, tmst
@@ -2359,6 +2322,8 @@ Function Trim_by_Deconv()
 end
 
 //End of deconvolution module
+
+// 52 ******************************************************************************************************
 
 // Error messages handling
 function Error_Dialog(error)
@@ -2376,6 +2341,96 @@ function Error_Dialog(error)
 
 end
 
+// 53******************************************************************************************************
+
+Function EPSC_Num(A_Struct) : SetVariableControl
+
+	Struct WMSetVariableAction &A_Struct
+	if (A_Struct.eventcode==2 || A_Struct.eventcode==6) //enter pressed or arrow 
+		Modify_Point(A_Struct.dval,1)
+	endif
+	
+end
+
+// 54******************************************************************************************************
+
+//returns values that were originally in power of ten as "converted" numbers with two decimal algarisms after the point
+
+Function [Variable number_out, String Out_Str] SuperRound(Variable number)                   
+
+    String StrNumber, Number_2, dummy
+    Variable Multiplier, i, power , difference , prefix, adding                       // multiplier decides how much the decimal spot is "shifted" 
+    StrNumber=num2str(number) 
+    if (strsearch ( StrNumber"e",0)!=-1)
+    	Multiplier = str2num(StrNumber[strsearch ( StrNumber"e",0)+1,inf])                       
+    else //when there is no  "e" to identify decimal numbers
+    	if (abs(number)<1)
+			for (i=1;i<strlen(StrNumber);i+=1)
+				adding=str2num(strnumber[i])
+				if (adding>=1)
+					i-=1
+					break
+				endif
+			endfor			
+    		Multiplier=i*-1
+    	endif //what if the number>>1? Gotta work this shit out...
+    endif
+    difference=mod(multiplier,3)
+    if (multiplier>0)
+    	//power=Multiplier-difference - original
+   		power=Multiplier-3-difference+2 //the "-2" followed by the round command is needed to have only 2 decimal algarisms after the point
+    	number_out=round(number/10^(power))/100
+    else
+    	//power=Multiplier-3-difference
+    	power=Multiplier-3-difference-2 //the "-2" followed by the round command is needed to have only 2 decimal algarisms after the point
+    	number_out=round(number/10^(power))/100
+    endif   
+   	StrNumber=num2str(number) 
+   	number_2=StrNumber[strsearch(StrNumber".",0)+1,strsearch(StrNumber".",0)+2]
+   	StrNumber=StrNumber[0,strsearch ( StrNumber".",0)]+number_2
+ 	if (multiplier>0)
+ 		prefix=(abs(Multiplier)-mod(abs(Multiplier),3))
+  	else
+  		prefix=(abs(Multiplier)+3-mod(abs(Multiplier),3))
+  	endif
+   prefix=multiplier<0?(prefix*-1):prefix
+   switch (prefix)
+   	Case -15:
+   		Out_str="f"
+   		Break
+   Case -12:
+   		Out_str="p"
+   		Break
+   Case -9:
+   		Out_str="n"
+   		Break
+   Case -6:
+   		Out_str="µ"
+   		Break
+   	Case -3:
+   		Out_str="m"
+   		Break
+   	Case 0:
+   		Out_str=""
+   		Break
+   	Case 3:
+   		Out_str="k"
+   		Break
+   	Case 6:
+   		Out_str="k"
+   		Break
+	Case 9:
+   		Out_str="G"
+   		Break
+   	Case 12:
+   		Out_str="T"
+   		Break	
+   	endswitch
+   	return [number_out, Out_Str]
+End
+
+// 55 ******************************************************************************************************
+
 //Handles all buttons actions
 Function Instructions_Handling(B_Struct):Buttoncontrol
 	STRUCT WMButtonAction &B_Struct
@@ -2384,7 +2439,6 @@ Function Instructions_Handling(B_Struct):Buttoncontrol
 		return 0
 	endif
 	StrSwitch (B_Struct.ctrlName)
-	//	print "OK"
 		Case "ok":
 			Killwindow Instructions
 			Break
@@ -2433,7 +2487,7 @@ Function Instructions_Handling(B_Struct):Buttoncontrol
 		case "isolate":
 			Controlinfo /W=Analysis_Minis Use_Template
 			if (V_Value)
-				template(CB_Struct)
+				I_template(CB_Struct)
 			endif
 			DS_isolateminis()
 			break

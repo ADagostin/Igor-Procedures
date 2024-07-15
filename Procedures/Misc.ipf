@@ -10,14 +10,20 @@ function segregate()
 String Name=getdatafolder(1)
 String list=wavelist("*",";","")
 variable i, Pos, Freq
-String Temp_S,Dest
+String Temp_S,Dest, check	
 for (i=0;i<itemsinlist(list);i+=1)
 	Wave temp=$Stringfromlist(i,list)
-	Pos=strsearch(note(temp),"Channel",0)
-	Temp_S=note(temp)[Pos+10,inf]
-	Pos=Strsearch(Temp_S,"Channel",0)
-	Temp_S=Temp_S[Pos,Pos+500]
-	Freq=Delta(Temp_S)	
+	
+	check = note(temp)
+	if (stringmatch(Check[0,7],"Filename")==0) // used without "pretty print"
+		Freq=Delta(check)
+	else
+		Pos=strsearch(note(temp),"Channel",0) // used with "pretty print"
+		Temp_S=note(temp)[Pos+10,inf]
+		Pos=Strsearch(Temp_S,"Channel",0)
+		Temp_S=Temp_S[Pos,Pos+500]
+		Freq=Delta(Temp_S)	
+	endif
 	If (Freq==100)
 		Dest=Name+"F_100:"
 		If (DataFolderExists("F_100")==0)
@@ -53,6 +59,16 @@ endif
 if (strsearch (Temp_S,"1.90 ms",0)!=-1)
 	return 500
 endif
+if (strsearch (Temp_S,"0.0099",0)!=-1)
+	return 100
+endif
+if (strsearch (Temp_S,"0.0049",0)!=-1)
+	return 200
+endif
+if (strsearch (Temp_S,"0.0019",0)!=-1)
+	return 500
+endif
+
 
 end
 
@@ -65,13 +81,48 @@ if (strlen(list)==0)
 	Print "******************* No such waves in this DF *******************"
 	abort
 endif
-concatenate /o/np=1 list, Matrix
+variable i, pnts
+pnts=numpnts($StringfromList(0,list))
+for (i=1;i<itemsInList(list);i+=1)
+	if (pnts!=numpnts($StringfromList(i,list)))
+		print "****** Number of points for the waves are different - aborting ******"
+		abort
+	endif
+endfor
+concatenate /o /np=1 list, Matrix
 matrixop /o temp=sumrows(Matrix)
 temp/=itemsinlist(list)
 setscale /p x,0,deltax($Stringfromlist(0,list)),"s",temp
 duplicate/o temp, $Name+"_AVG"
 killwaves /z temp, Matrix
 end
+
+//adds Nan to the end of a group of waves to make them the same size
+//note: i'd rather add points than to subtract them to avoid losing any significant datapoint
+Function Same_num_pnts(name)
+String Name 
+String list=wavelist("*"+Name+"*",";","")
+if (strlen(list)==0)
+	Print "******************* No such waves in this DF *******************"
+	abort
+endif
+variable i, total
+make/n=(itemsInList(list)) Wave_Num_Pnts
+for (i=0;i<itemsInList(list);i+=1)
+	Wave_Num_Pnts[i]=numpnts($Stringfromlist(i,list))
+endfor
+for (i=0;i<itemsInList(list);i+=1)
+	wave temp=$Stringfromlist(i,list)
+	if (numpnts(temp)!=wavemax(Wave_Num_Pnts))
+		insertpoints /v=(nan) numpnts(temp), wavemax(Wave_Num_Pnts)-numpnts(temp), temp
+		total+=1
+	endif
+	
+endfor
+print "****** ",total,"waves modified ******"
+killwaves /z Wave_Num_Pnts
+end
+
 
 //change active datafolder (one evel only) and retrieves listed waves into the original datafolder
 //while averaging them 
@@ -80,33 +131,36 @@ String Comm="s"
 String DF_List=Stringbykey("Folders",datafolderdir(1),":",";")
 Variable i,j
 String This_DF=getdatafolder(1)
-DFREF This_DataF = GetDataFolderDFR()
+string This_DataF = GetDataFolder(1)
 String GO_To_DF, Sublist
 String list=wavelist("*",";","")
 
-List ="Amplitudes;"//Raster_Wave;HW;:APs:ACT_Pot_0;" //your waves here!
+List ="raster_wave;mean_ap;"//:APs:ACT_Pot_0;" //your waves here!
 
 For (i=0;i<itemsinlist(DF_List,",");i+=1)
 	GO_To_DF=This_DF+stringfromlist(i,DF_List,",")+":"
 	Setdatafolder GO_To_DF
+	doupdate
 	Retrieve_from_DF(This_DataF,i,list)
 	Setdatafolder This_DataF
 endfor
+
 for (i=0;i<itemsinlist(list);i+=1)
 	sublist=wavelist(stringfromlist(i,list)+"*",";","")
 	for (j=0;j<itemsInList(sublist);j+=1)
 		Averages(stringfromlist(i,list))
 	endfor
 endfor
+return 0
 end
 
 
 //retrieves the waves designated in the LIST string to the main datafolder with numbers as suffixes
 Function Retrieve_From_DF(Prev_DataF,index,list) 
-DFREF Prev_DataF
+string Prev_DataF
 Variable index
 String List
-String Name, Name2
+String Name, Name2, destination
 Variable i 
 For (i=0;i<itemsinlist(list);i+=1)
 	Name=Stringfromlist(i,list)+"_"+num2str(index)
@@ -114,8 +168,9 @@ For (i=0;i<itemsinlist(list);i+=1)
 		Name2=stringfromlist(2,name,":")
 		name=name2		
 	endif
-	Duplicate/o $Stringfromlist(i,list), $name
-movewave $Name, Prev_DataF
+	Duplicate/o $Stringfromlist(i,list) $name
+	destination=Prev_DataF+name
+	movewave $Name, $destination
 endfor
 end
 
@@ -204,41 +259,35 @@ duplicate /o $Stringfromlist(0,list), TEMP_Dif_dif
 
 Make/o/n=(itemsinlist(list)) Maxes
 for (i=0; i<itemsinlist(list);i+=1)
-//Name="Temp_"+num2str(i)
-//duplicate/o $Stringfromlist(i,list), $Name
-wave temp=$Stringfromlist(i,list)
-if (strlen(csrinfo(A))==0 || strlen(csrinfo(B))==0)
-wavestats/q temp
-else
-
-wavestats/q /r=[pcsr(a),pcsr(b)] temp
-endif
-If (select)
-Maxes[i]=V_Maxrowloc
-else
-Maxes[i]=V_Minrowloc//V_Maxrowloc
-endif
-switch (Select)
-	Case 1:
-	Maxes[i]=V_Maxrowloc
-	break
-	Case -1:
-	Maxes[i]=V_Minrowloc
-	break
-	Case 0:
-	Differentiate TEMP /D=Temp_DIF
-	Differentiate TEMP_Dif /D=Temp_DIF_DIF
-	//findlevel /P /Q Temp_Dif_DIF, -3e-6 
-	//Maxes[i]=round(V_Levelx)
-	wavestats /q Temp_DIF_DIF
-		Maxes[i]=V_Maxrowloc//V_Minrowloc
-
-	break
-	Case 2:
-		Differentiate TEMP /D=Temp_DIF
-		findlevel /P  /r=[P1,P2] /Q Temp_DIF, -4e-7 
-		Maxes[i]=round(V_Levelx)
-	break
+	wave temp=$Stringfromlist(i,list)
+	if (strlen(csrinfo(A))==0 || strlen(csrinfo(B))==0)
+		wavestats/q temp
+	else
+		wavestats/q /r=[pcsr(a),pcsr(b)] temp
+	endif
+	If (select)
+		Maxes[i]=V_Maxrowloc
+	else
+		Maxes[i]=V_Minrowloc//V_Maxrowloc
+	endif
+	switch (Select)
+		Case 1:
+		Maxes[i]=V_Maxrowloc
+		break
+		Case -1:
+		Maxes[i]=V_Minrowloc
+		break
+		Case 0:
+			Differentiate TEMP /D=Temp_DIF
+			Differentiate TEMP_Dif /D=Temp_DIF_DIF
+			wavestats /q /r=[p1,p2] Temp_DIF_DIF
+			Maxes[i]=V_Maxrowloc//V_Minrowloc
+		break
+		Case 2:
+			Differentiate TEMP /D=Temp_DIF
+			findlevel /P  /r=[P1,P2] /Q Temp_DIF, -4e-7 
+			Maxes[i]=round(V_Levelx)
+		break
 	Default:
 		Print "Choose 1 for positive peak alignement, -1 for negative or 0 for dV/dt"
 	abort
@@ -255,21 +304,18 @@ Wave Base_Wv=$Stringfromlist(V_MaxRowLoc,list)
 Variable This_Deltax
 variable Max_Val=Wavemax(Maxes)
 for (i=0; i<itemsinlist(list);i+=1)
-This_Deltax=Deltax($Stringfromlist(i,list))
+	This_Deltax=Deltax($Stringfromlist(i,list))
 	if ((Base_Deltax/This_Deltax)!=1)
-
-
 		resample /same=Base_Wv $Stringfromlist(i,list)
-
 	endif
 	if (strlen(csrinfo(A))==0 || strlen(csrinfo(B))==0)
-	wavestats/q $Stringfromlist(i,list)
+		wavestats/q $Stringfromlist(i,list)
 	else
-	wavestats/q /r=[pcsr(a),pcsr(b)] $Stringfromlist(i,list)
+		wavestats/q /r=[pcsr(a),pcsr(b)] $Stringfromlist(i,list)
 	endif
 	switch (select)
-	Case 1:
-	if (V_Maxrowloc<Max_Val)
+		Case 1:
+		if (V_Maxrowloc<Max_Val)
 			//deletepoints 0,V_Maxrowloc-Min_val,$Stringfromlist(i,list)
 			
 			insertpoints 0,abs(V_Maxrowloc-Max_val),$Stringfromlist(i,list)
@@ -278,34 +324,27 @@ This_Deltax=Deltax($Stringfromlist(i,list))
 		//	print i, V_Maxrowloc-Max_val
 		endif
 	
-	Break
-	Case -1:
-	
-
-		if (V_minrowloc<Max_Val)
-			//deletepoints 0,V_Maxrowloc-Min_val,$Stringfromlist(i,list)
-			
-			insertpoints 0,abs(V_minrowloc-Max_val),$Stringfromlist(i,list)
-			wave temp=$Stringfromlist(i,list)
-			temp[0,abs(V_minrowloc-Max_val)]=nan
-		//	print i, V_Maxrowloc-Max_val
-		endif
-	Break
-	Case 0:
-	Differentiate $Stringfromlist(i,list) /D=Temp_DIF
-		Differentiate TEMP_Dif /D=Temp_DIF_DIF
-//	print i, V_Maxrowloc,Max_val
-	wavestats /q temp_dif_DIf
-	if (V_Maxrowloc<Max_Val)
-			//deletepoints 0,V_Maxrowloc-Min_val,$Stringfromlist(i,list)
-			
-			insertpoints 0,abs(V_Maxrowloc-Max_val),$Stringfromlist(i,list)
-			wave temp=$Stringfromlist(i,list)
-			temp[0,abs(V_Maxrowloc-Max_val)]=nan
+		Break
+		Case -1:
+			if (V_minrowloc<Max_Val)
+				insertpoints 0,abs(V_minrowloc-Max_val),$Stringfromlist(i,list)
+				wave temp=$Stringfromlist(i,list)
+				temp[0,abs(V_minrowloc-Max_val)]=nan
+			endif
+		Break
+		Case 0:
+			Differentiate $Stringfromlist(i,list) /D=Temp_DIF
+			Differentiate TEMP_Dif /D=Temp_DIF_DIF
+			wavestats /q /r=[p1,p2] temp_dif_DIf
+			if (V_Maxrowloc<Max_Val)
+				insertpoints 0,abs(V_Maxrowloc-Max_val),$Stringfromlist(i,list)
+				wave temp=$Stringfromlist(i,list)
+				temp[0,abs(V_Maxrowloc-Max_val)]=nan
 			print i, V_Maxrowloc-Max_val
-		endif
-	break
+			endif
+		break
 	Case 2:
+		print i
 		Differentiate $Stringfromlist(i,list) /D=Temp_DIF
 		findlevel /P /r=[p1,p2]  /Q Temp_DIF, -4e-7 
 		if (round(V_Levelx)<Max_Val)
@@ -387,18 +426,19 @@ end
 
 function New_IV(Type)
 Variable type
-Variable P1=0.345
-Variable P2=0.35
+Variable P1=0.245
+Variable P2=0.25
 if (strlen(csrInfo(A))==0 || Strlen(Csrinfo(B))==0)
 		print "No cursors in the top Graph!!"
 		abort
 endif
+
 IF (Type<1 || Type>2)
 	Print "Choose 1 or 2 points and rerun."
 	abort
 	
 endif
-Make/n=1 IVVI
+Make/n=1 /o IVVI
 Switch (Type)
 	Case 1:
 		Exec_IV(xcsr(a),xcsr(b))
@@ -423,7 +463,7 @@ end
 
 function Exec_IV(P1, P2)
 Variable P1, P2
-String List=wavelist("*",";","Win:")
+String List=sortlist(wavelist("!fit*",";","Win:"),";",16)
 Variable i
 make/o/n=(Itemsinlist(list)) IVVI
 for (i=0;i<itemsinlist(list);i+=1)
@@ -460,10 +500,10 @@ end
 function raster_offset()
 string list=wavelist("*",";","Win:")
 variable i,j
-j=0.1
+//j=0.1
 for (i=0;i<itemsinlist(list);i+=1)
 	ModifyGraph offset($Stringfromlist(i,list))={0,j}
-	j+=0.1
+	j+=400//e-12
 endfor
 end
 
@@ -478,10 +518,10 @@ endfor
 for (i=0;i<itemsinlist(list);i+=1)
 	wave temp=$Stringfromlist(i,list)
 	for (j=0;j<numpnts(temp);j+=1)
-//		if (numtype(temp[j])==2)
-	if (temp[j]==0)
-			temp[j]=nan
-		//	temp[j]=temp[j-1]
+		if (numtype(temp[j])==2)
+	//if (j>pcsr(a) && J<Pcsr(b))
+		//	temp[j]=nan
+			temp[j]=temp[j-1]
 		endif
 	endfor
 Endfor
@@ -563,36 +603,69 @@ j=0
 endfor
 end
 
-function get_param() // retrieves some parameters based on the wave's note
-String list=wavelist("P*",";","")
-String parameter="Sweep Time"
-//Parameter="PMSweepTime"
-variable i
-wave temp=$StringfromList(0,list)
-//print stringbykey(parameter,note(temp))
-String Temp_String=stringbykey(parameter,note(temp),":",";\r")
-Variable Str_offset=16+1
-Variable This_Hour=str2num(Temp_String[Str_offset,Str_offset+1])
-Str_offset+=3
-Variable This_Min=str2num(Temp_String[Str_offset,Str_offset+1])
-Str_offset+=3
-Variable This_Sec=str2num(Temp_String[Str_offset,Str_offset+1])
-print This_Hour,strlen(Temp_String), Temp_String
-Variable Zero_time_Secs=This_Hour*60*60+This_Min*60+This_Sec
-Make/o/n=(itemsInList(list)) Stim_Time
-	Str_offset-=6
 
-for (i=1;i<itemsInList(list);i+=1)
-	wave temp=$StringfromList(i,list)
-	Temp_String=stringbykey(parameter,note(temp),":",";\r")
-	This_Hour=str2num(Temp_String[Str_offset,Str_offset+1])
-	Str_offset+=3
-	This_Min=str2num(Temp_String[Str_offset,Str_offset+1])
-	Str_offset+=3
-	This_Sec=str2num(Temp_String[Str_offset,Str_offset+1])
-	Str_offset-=6
-	Stim_time[i]=This_Hour*60*60+This_Min*60+This_Sec-Zero_time_secs
-endfor
+function Get_item(item_num) //bpc_Read_HEKA
+variable item_num
+string list=wavelist("*",";","win:")
+variable i
+String item, accessory
+make/o/n=(itemsinlist(list)) output
+switch (item_num)
+	Case 0:
+		item+="Sweep Time"
+	break
+	Case 1:
+		item="Timer"
+		accessory=""
+		for (i=0;i<numpnts(output);i+=1)
+			wave temp=$Stringfromlist(i,list)
+			output[i]= return_secs(temp,i)
+		endfor
+	break
+	Case 2:
+		item="Group"
+	break
+	Case 3:
+		item="Series"
+	break
+	Case 4:
+		item="Sweep"
+	break
+	Case 5:
+		item="Trace"
+	break
+	Case 6:
+		item="CSlow"
+	break
+	Case 7:
+		item="RSeries"
+		accessory="MOhm"
+	break
+	Case 8:
+		item="RSValue"
+	break
+	Case 9:
+		item="rsFraction"
+	break
+endswitch
+print "Item =", item
+
+end
+
+Function return_secs(temp,i)
+
+	wave temp
+	variable i
+	string list=wavelist("P_*",";","win:")
+	string test
+	variable minute, second, output
+	test = stringbykey("\rtimer",note(temp))
+	test = test[0,strlen(test)-5]
+	minute = str2num(test[4,5])
+	second=str2num(test[7,8])
+	output=minute*60+second
+	return output
+
 end
 
 
@@ -609,80 +682,130 @@ areas-=baseline_area
 end
 
 
-function IDF() //"Ã¯nvade datafolders" - accesses DFs (one level only)  and execute the desired command(s)
+function IDF() //"•nvade datafolders" - accesses DFs (one level only)  and execute the desired command(s)
+String prot
 Variable DF_Num=countobjects("",4)
 variable i
-wave P_avg, PMPulse_avg,a_amplitude0, amp_norm
+String name, DFs
+Dfs=""
+setdatafolder root:
+wave P_avg, PMPulse_avg,a_amplitude, a_risetime, amp_norm, output
 for (i=0;i<DF_Num;i+=1)
+//strswitch (prot)
+//	Case "look_dfs":
+		DFs=getindexedObjName("",4,i)
+		print DFs
+//	break
+//	default:
+if (stringmatch(DFs,"A*")!=1 && stringmatch(DFs,"P*")!=1)
 	Setdatafolder getindexedObjName("",4,i)
+//	zap()
+//	look_dfs()
+//Setdatafolder Minis
 
-	zap()
-	//		avg_sims("P")
+	//segregate()
 	//	execute"resample /up=10 P_avg"
 	//		showinfo
 	//execute "Edit /k=1 Amplitudes, Amplitudes_norm"
 	//	segregate()
-	//display_all()
+	//name="amp_"+num2str(i)
+//execute "duplicate /o a_amplitude , "+name
+//movewave $name, root:
+//name="rise_"+num2str(i)
+
+//execute "duplicate /o a_risetime, "+Name
+//movewave $name, root:
+
+//	display_all(); showInfo
 	//sleep /s 1
-	//look_dfs()
-	//avg_sims("P")
 	//execute "display /k=1 P_avg"; showinfo
-	//look_dfs()
 	//set(); display_all(); Showinfo
 	//execute "Duplicate /o a_amplitude0, Amp_norm"
 	//execute "Amp_norm/=a_amplitude0[0]"
-	
 	setdatafolder ::
+	setdatafolder ::
+endif
+//endswitch
 endfor
 end
-
-
+//returns the suffix of the patchmaster waves - used to differentiate between PPT and BPC
+//loading XOPs
+Static Function /t Which_XOP()
+	string list=wavelist("*",";","")
+	variable i
+	for (i=0;i<itemsInList(list);i+=1)
+		if (stringmatch(stringfromList(i,list),"*mon*"))
+			return "mon"
+		else
+			return ""
+		endif
+	endfor
+end
 
 
 //Calculatest the FFT from input (current) and output (voltage)
 //after averaging the chirp waves. It calculates the impedance by dividing V_FFT/I_FFT and 
 //outputs a wave ("final") which is the whole FFT spectrum of the waves.
- 
-function ZAP()
-Print "********************   Start calculating ZAP wave, please wait.   ********************"
-variable i
-avg_sims("Vmon")
-avg_sims("Imon")
-Variable Freq_ini=1 //defines the final FFT piece to be used
-Variable Freq_final=300 //defines the final FFT piece to be used
-wave Imon_avg, Vmon_avg
-Print "Averages calculated..."
-FFT/OUT=1/DEST=Imon_FFT Imon_AVG
-FFT/OUT=1/DEST=Vmon_FFT vmon_AVG
-Print "FFTs calculated..."
-make/o /n=(numpnts(Imon_FFT)) Imped_real
-make/o /n=(numpnts(Imon_FFT)) Imped_Img
-duplicate/o /c Imon_FFT, Imped
-Imped=Vmon_FFT/Imped
-imped_real=Imped[p]
-imped_img=imag(imped)
-make/o/n=(numpnts(Imped_Real)) Final
-Final = sqrt(Imped_Real^2+Imped_Img^2)
-setscale /p x,0,deltax(Imon_FFT),"Hz",Final
-deletepoints x2pnt(final,Freq_final), numpnts(final)-x2pnt(final,Freq_final), final
-deletepoints 0,x2pnt(final, Freq_ini),final
-setscale /p x,Freq_ini,deltax(Imon_FFT),"Hz",Final
-PPTDoKillMultipleWaves ("Imon-", 1); Doupdate
-PPTDoKillMultipleWaves ("Vmon-", 1); Doupdate
-Duplicate/O Final, filtered
-Make/O/D/N=0 coefs
-FilterFIR/DIM=0/LO={0,0.0166611,101}/COEF coefs, filtered
-resample /down=10 filtered
-killwaves /z Imped, Imon_FFT, Vmon_FFT, coefs, Imped_real, Imped_img
-for (i=0;i<3;i+=1)
-	Doupdate
-	beep
-	sleep /s 0.3
-endfor
-Print "***********************Success calculating ZAP wave.***********************"
+
+Function ZAP()
+	
+	wave V_AVG, I_AVG
+	avg_sims("V"+Which_XOP())
+	avg_sims("I"+Which_XOP())
+	if (strlen(Which_XOP())==0)
+		ZAP_Cont(1)
+	else
+		ZAP_Cont(0)
+	endif
 end
 
-
+Static Function ZAP_cont(Val)
+	Variable val
+	if (val)
+		wave I_AVG, V_AVG
+		Duplicate/o I_AVG, Imon_AVG
+		Duplicate/o V_AVG, Vmon_AVG
+		killwaves /z I_AVG, V_AVG
+	endif
+	Print "********************   Start calculating ZAP wave, please wait.   ********************"
+	variable i
+	Variable Freq_ini=1 //defines the final FFT piece to be used
+	Variable Freq_final=500 //defines the final FFT piece to be used
+	Print "Averages calculated..."
+	FFT/OUT=1/DEST=Imon_FFT Imon_AVG
+	FFT/OUT=1/DEST=Vmon_FFT vmon_AVG
+	Print "FFTs calculated..."
+	make/o /n=(numpnts(Imon_FFT)) Imped_real
+	make/o /n=(numpnts(Imon_FFT)) Imped_Img
+	duplicate/o /c Imon_FFT, Imped
+	Imped=Vmon_FFT/Imped
+	imped_real=Imped[p]
+	imped_img=imag(imped)
+	make/o/n=(numpnts(Imped_Real)) Final
+	Final = sqrt(Imped_Real^2+Imped_Img^2)
+	setscale /p x,0,deltax(Imon_FFT),"Hz",Final
+	deletepoints x2pnt(final,Freq_final), numpnts(final)-x2pnt(final,Freq_final), final
+	deletepoints 0,x2pnt(final, Freq_ini),final
+	setscale /p x,Freq_ini,deltax(Imon_FFT),"Hz",Final
+	if (strlen(functioninfo("PPTDoKillMultipleWaves")))
+	PPTDoKillMultipleWaves ("_I", 1); Doupdate
+	PPTDoKillMultipleWaves ("_V", 1); Doupdate
+	endif
+	Duplicate/O Final, filtered
+	Make/O/D/N=0 coefs
+	FilterFIR/DIM=0/LO={0,0.0166611,101}/COEF coefs, filtered
+	//make/o/n=300 temp
+	resample /down=10 filtered
+	//resample /same=temp filtered
+	killwaves /z Imped, Imon_FFT, Vmon_FFT, coefs, Imped_real, Imped_img//, temp
+	for (i=0;i<3;i+=1)
+		Doupdate
+		beep
+		sleep /s 0.3
+	endfor
+	Print "***********************Success calculating ZAP wave.***********************"
+end
+//Seg_Ch: Segregates the ZAP waves with their respecive current command input
 function seg_ch()
 	newdatafolder /o Amp_100
 	newdatafolder /o Amp_50
@@ -712,15 +835,15 @@ function seg_ch()
 	endif
 endfor
 //futher segregation in different holding (-80, -70, -60 and -50 mV)
-setdatafolder Amp_100
-seg_chirp(Volt, Curr)
-setdatafolder ::
-setdatafolder Amp_50
-seg_chirp(Volt,Curr)
-setdatafolder ::
+//setdatafolder Amp_100
+//seg_chirp(Volt, Curr)
+//setdatafolder ::
+//setdatafolder Amp_50
+//seg_chirp(Volt,Curr)
+//setdatafolder ::
 end
 
-static function seg_chirp(Volt,Curr)
+ function seg_chirp(Volt,Curr)
 	String VOlt, Curr
 	newdatafolder /o CC_80
 	newdatafolder /o CC_70
@@ -738,4 +861,94 @@ static function seg_chirp(Volt,Curr)
 		movewave temp, $stringfromlist(avg, DF_names)
 		movewave temp_i, $stringfromlist(avg, DF_names)
 	endfor
+end
+//--------
+//Performs a sliding average with a bin size defined by the user.
+//If needed, cursors (A to F) can be placed on a displayed target wave to define specific portions of the 
+//wave to be computed independently.
+Function Sl_AVG(bin, Original)
+Variable bin
+Wave Original
+variable i,j,k
+
+duplicate/o Original, SLD_AVG
+//wave Original=LMAN
+String Cursors=""
+MAKE/O/N=1 Cursor_Pos=numpnts(Original)-1
+if (strlen(CsrInfo(A))>0)
+	Cursors+="A;"
+	insertpoints /V=(pcsr(A)) 0,1,Cursor_Pos 
+endif
+if (strlen(CsrInfo(B))>0)
+	Cursors+="B;"
+	insertpoints /V=(pcsr(B)) 1,1,Cursor_Pos
+endif
+if (strlen(CsrInfo(C))>0)
+	Cursors+="C;"
+	insertpoints /V=(pcsr(C)) 2,1,Cursor_Pos
+endif
+if (strlen(CsrInfo(D))>0)
+	Cursors+="D;"
+	insertpoints /V=(pcsr(D)) 3,1,Cursor_Pos
+endif
+if (strlen(CsrInfo(E))>0)
+	Cursors+="E;"
+	insertpoints /V=(pcsr(E)) 4,1,Cursor_Pos
+endif
+if (strlen(CsrInfo(F))>0)
+	Cursors+="F;"
+	insertpoints /V=(pcsr(F)) 5,1,Cursor_Pos
+endif
+if (strlen(CsrInfo(G))>0)
+	Cursors+="G;"
+	insertpoints /V=(pcsr(G)) 6,1,Cursor_Pos
+endif
+if (strlen(CsrInfo(H))>0)
+	Cursors+="H;"
+	insertpoints /V=(pcsr(H)) 7,1,Cursor_Pos
+endif
+insertpoints 0,1,Cursor_Pos
+if (strlen(Cursors)==0)
+	For (i=0;i<numpnts(SLD_AVG);i+=1)
+		if (i>=numpnts(SLD_AVG)-1-bin)
+			SLD_AVG[i]=mean(original,i,numpnts(SLD_AVG)-1-i)
+		else
+			SLD_AVG[i]=mean(original,i,i+bin-1)
+		endif
+	endfor
+else
+	For (i=0;i<=itemsInList(Cursors);i+=1)	
+		For (j=Cursor_Pos[i];j<=Cursor_Pos[i+1];j+=1)
+			if (j==Cursor_Pos[i] && j>0)
+				j+=1
+			endif	
+			if (j>Cursor_Pos[i+1]-bin)
+				//SLD_AVG[j]=mean(original,j,Cursor_Pos[i+1])
+				duplicate /o /r=[j,Cursor_Pos[i+1]] original, temp
+				insertpoints bin, bin-1, temp
+				temp[bin,2*bin-2]=temp[2*bin-2-p]
+				setscale /p x,0,1,"",temp
+				for (k=0;k<bin;k+=1)
+					SLD_AVG[j+k]=mean(temp,k,k+bin-1)	
+				endfor		
+		
+				break
+			else
+				SLD_AVG[j]=mean(original,j,j+bin-1)
+			endif			
+		endfor	
+	
+	Endfor
+endif
+note SLD_AVG, "Sliding average bin = "+num2str(bin) 
+string test=""
+if (strlen(Cursors)>0)
+	note SLD_AVG, num2str(itemsinlist(Cursors))+" cursors were positioned: "+removeending(Cursors)
+	for(i=1;i<numpnts(Cursor_Pos);i+=1)
+		test+=num2str(Cursor_Pos[i])+", "
+	endfor
+	note SLD_AVG, "Cursors defined points: "+removeending (test,", ")
+endif
+note SLD_AVG, "Right limits calculated using \"mirroring\" approach."
+killwaves /z temp, Cursor_pos
 end

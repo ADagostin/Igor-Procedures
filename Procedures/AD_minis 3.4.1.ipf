@@ -3,13 +3,6 @@
 #include <PopupWaveSelector>
 
 
-//This analysis routine was originally Written  BY Darius Schwenger and Robert Renden.
-//Andre Dagostin improved the originl routine with:
-//_ Better user interface
-//_ Sliding EPSC template instead of sliding-baseline threshold detection 
-//_ Added fields to input different variables to improve PSC search and analysis
-//_Changed the way the output data is stored (From 1D waves to matrices)
-
 //The EPSC template used for EPSC detection is based on the article:
 //Journal of Physiology (1993), 472, pp. 615-663 615 
 //QUANTAL COMPONENTS OF UNITARY EPSCs AT THE MOSSY FIBRE SYNAPSE ON CA3 PYRAMIDAL CELLS OF RAT HIPPOCAMPUS BY P. JONAS, G. MAJOR* AND B. SAKMANN

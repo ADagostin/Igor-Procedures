@@ -1061,7 +1061,7 @@ Function HK_Browser()
 	Wave   s4 = HKB_SelW(4)
 	Wave   cw = gui:HKB_Colors
 
-	NewPanel/K=1/N=$kHKB_PANEL/W=(80, 80, 1020, 540) as "HEKA DAT Browser"
+	NewPanel/K=1/N=$kHKB_PANEL/W=(80, 80, 980, 540) as "HEKA DAT Browser"
 
 	Button   bOpen,  pos={8,6},   size={80,20},  title="Open .dat...", fsize=11, proc=HKB_ButtonProc
 	TitleBox tFile,  pos={94,10}, size={640,16}, frame=0, fsize=10, variable=root:Packages:HEKA:GUI:HKB_FileStr
@@ -1070,7 +1070,7 @@ Function HK_Browser()
 	TitleBox hSe,    pos={156,30}, size={138,14}, frame=0, fsize=11, title="\\f01Series"
 	TitleBox hSw,    pos={302,30}, size={138,14}, frame=0, fsize=11, title="\\f01Sweep"
 	TitleBox hTr,    pos={448,30}, size={138,14}, frame=0, fsize=11, title="\\f01Trace"
-	TitleBox hNm,    pos={594,30}, size={138,14}, frame=0, fsize=11, title="\\f01Series name"
+	TitleBox hNm,    pos={755,30}, size={138,14}, frame=0, fsize=11, title="\\f01Load Series"
 
 	ListBox  lb0, pos={8,46},   size={140,320}, proc=HKB_ListProc
 	ListBox  lb0, listWave=l0, selWave=s0, colorWave=cw, mode=kHKB_ModeMulti, widths={88,40}
@@ -1080,24 +1080,24 @@ Function HK_Browser()
 	ListBox  lb2, listWave=l2, selWave=s2, colorWave=cw, mode=kHKB_ModeMulti, widths={88,40}
 	ListBox  lb3, pos={446,46}, size={140,320}, proc=HKB_ListProc
 	ListBox  lb3, listWave=l3, selWave=s3, colorWave=cw, mode=kHKB_ModeMulti, widths={88,40}
-	ListBox  lb4, pos={592,46}, size={140,320}, proc=HKB_ListProc
+	ListBox  lb4, pos={755,46}, size={140,155}, proc=HKB_ListProc
 	ListBox  lb4, listWave=l4, selWave=s4, colorWave=cw, mode=kHKB_ModeMulti, widths={88,40}
 
 	TitleBox tPath,   pos={8,374}, size={724,16}, frame=0, fsize=11, variable=root:Packages:HEKA:GUI:HKB_PathStr
 	TitleBox tInfo,   pos={8,394}, size={724,16}, frame=0, fsize=11, variable=root:Packages:HEKA:GUI:HKB_InfoStr
 	TitleBox tStatus, pos={8,416}, size={724,16}, frame=0, fsize=11, variable=root:Packages:HEKA:GUI:HKB_Status
 
-	Button   bLoad,  pos={742,46},  size={190,26}, title="Load  --  nothing selected", fsize=11, proc=HKB_ButtonProc
-	CheckBox cZero,  pos={742,80},  size={190,14}, title="subtract TrZeroData", fsize=11, variable=root:Packages:HEKA:GUI:HKB_ZeroSub
-	CheckBox cStim,  pos={742,98},  size={190,14}, title="also load stimulus",  fsize=11, variable=root:Packages:HEKA:GUI:HKB_LoadStim
-	CheckBox cPrev,  pos={742,116}, size={190,14}, title="preview on click",    fsize=11, variable=root:Packages:HEKA:GUI:HKB_DoPreview
-	SetVariable svBase, pos={742,138}, size={190,16}, title="Base ", fsize=11, value=root:Packages:HEKA:HK_BaseName
-	SetVariable svDest, pos={742,160}, size={190,16}, title="Into ", fsize=11, value=root:Packages:HEKA:GUI:HKB_DestDF
-	Button   bInfo,  pos={742,184}, size={190,18}, title="Dump metadata", fsize=11, proc=HKB_ButtonProc
+	Button   bLoad,  pos={592,46},  size={150,26}, title="Load  --  nothing selected", fsize=11, proc=HKB_ButtonProc
+	CheckBox cZero,  pos={592,80},  size={150,14}, title="subtract TrZeroData", fsize=11, variable=root:Packages:HEKA:GUI:HKB_ZeroSub
+	CheckBox cStim,  pos={592,98},  size={150,14}, title="also load stimulus",  fsize=11, variable=root:Packages:HEKA:GUI:HKB_LoadStim
+	CheckBox cPrev,  pos={592,116}, size={150,14}, title="preview on click",    fsize=11, variable=root:Packages:HEKA:GUI:HKB_DoPreview
+	SetVariable svBase, pos={592,138}, size={150,16}, title="Base ", fsize=11, value=root:Packages:HEKA:HK_BaseName
+	SetVariable svDest, pos={592,160}, size={150,16}, title="Into ", fsize=11, value=root:Packages:HEKA:GUI:HKB_DestDF
+	Button   bInfo,  pos={594,184}, size={150,18}, title="Dump metadata", fsize=11, proc=HKB_ButtonProc
 
-	Display/W=(742,212,932,366)/HOST=$kHKB_PANEL/N=Preview
-	ModifyGraph/W=$(kHKB_PANEL+"#Preview") margin(left)=38, margin(bottom)=26, margin(top)=8, margin(right)=8
-	ModifyGraph/W=$(kHKB_PANEL+"#Preview") fSize=9
+	Display/W=(592,212,895,450)/HOST=$kHKB_PANEL/N=Preview
+	ModifyGraph/W=$(kHKB_PANEL+"#Preview") margin(left)=38, margin(bottom)=40, margin(top)=8, margin(right)=8
+	ModifyGraph/W=$(kHKB_PANEL+"#Preview") fSize=9, Framestyle=4
 
 	SetWindow $kHKB_PANEL, hook(HKBhook) = HKB_WinHook
 
@@ -1245,7 +1245,7 @@ static Function HKB_Preview(node)
 	// No DoWindow test: DoWindow does not accept subwindow syntax, and the Preview
 	// subwindow is created with the panel, so it exists whenever we get here.
 	String gw = kHKB_PANEL + "#Preview"
-	CheckDisplayed/W=$gw w
+	CheckDisplayed/W=$gw w	
 	if( V_flag == 0 )
 		AppendToGraph/W=$gw w
 		ModifyGraph/W=$gw rgb=(0,0,0)

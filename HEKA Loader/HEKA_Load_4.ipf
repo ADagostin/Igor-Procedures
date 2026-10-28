@@ -279,9 +279,16 @@ Function/WAVE HK_LoadTrace(node, [destName, zeroSub])
 	endif
 
 	DFREF dfr = $kHKL_DF
-	SVAR/Z/SDFR=dfr path = HK_Path
-	if( !SVAR_Exists(path) )
+	SVAR/Z/SDFR=dfr scanned = HK_Path
+	if( !SVAR_Exists(scanned) )
 		Print "HK_LoadTrace: run HK_Scan() first."
+		return $""
+	endif
+	// The samples live in the bundle itself, or in the companion .dat of an unbundled
+	// set.  TrData is an absolute offset into that file in both cases.
+	String path = HK_DataFile()
+	if( strlen(path) == 0 )
+		Print "HK_LoadTrace: this recording has no .dat raw-data file."
 		return $""
 	endif
 
@@ -908,7 +915,7 @@ static Function HKS_LoadBlock(ext, dfName, prefix)
 	Wave/Z/SDFR=hk   iStart = HK_ItemStart
 	Wave/Z/SDFR=hk   iLen   = HK_ItemLength
 	if( !WaveExists(iExt) )
-		Print "HK_LoadStimulus: no bundle header -- run HK_Scan() first."
+		Print "HK_LoadStimulus: no item table -- run HK_Scan() first."
 		return -1
 	endif
 
@@ -928,10 +935,16 @@ static Function HKS_LoadBlock(ext, dfName, prefix)
 		return -2
 	endif
 
+	// In a bundle this is the bundle; in an unbundled set it is the companion file.
+	String blockFile = HK_ItemFileFor(ext)
+	if( strlen(blockFile) == 0 )
+		blockFile = path
+	endif
+
 	Variable refNum
-	Open/R/Z=1 refNum as path
+	Open/R/Z=1 refNum as blockFile
 	if( V_flag != 0 )
-		Print "HK_LoadStimulus: cannot reopen " + path
+		Print "HK_LoadStimulus: cannot open " + blockFile
 		return -3
 	endif
 	Make/O/B/U/N=(blockLen) dfr:$(prefix+"Bytes")/WAVE=bb
@@ -1975,7 +1988,8 @@ static Function HKM_AddN(s, key, v, unit)
 	Variable v
 	String unit
 	String t
-	sprintf t, "%s=%.10g;%s_disp=%s;", key, v, key, HKM_Eng(v, unit)
+	//sprintf t, "%s=%.10g;%s_disp=%s;", key, v, key, HKM_Eng(v, unit)
+	sprintf t, "%s=%s;", key, HKM_Eng(v, unit)
 	s += t//+"\r"
 	return 0
 End
@@ -2231,7 +2245,8 @@ Function/S HK_TraceMetaNote(traceNode)
 
 	Variable frac = HKS_R8(ab, ao + kHKA_oRsFraction, aswap)
 	String t
-	sprintf t, "RsFraction=%.10g;RsFraction_disp=%.4g %%;", frac, frac*100
+	//sprintf t, "RsFraction=%.10g;RsFraction_disp=%.4g %%;", frac, frac*100
+	sprintf t, "RsFraction=%.4g %%;", frac*100
 	s += t
 
 	Variable rsOn = ab[ao + kHKA_oRsOn]
@@ -2248,7 +2263,8 @@ Function/S HK_TraceMetaNote(traceNode)
 	HKM_AddN(s, "VOffset", HKS_R8(ab, ao + kHKA_oVpOffset,    aswap), "V")
 
 	Variable cgain = HKS_R8(ab, ao + kHKA_oCurrentGain, aswap)
-	sprintf t, "Gain=%.10g;Gain_disp=%.4g mV/pA;GainIndex=%d;", cgain, cgain/1e9, ab[ao + kHKA_oGainIndex]
+	//sprintf t, "Gain=%.10g;Gain_disp=%.4g mV/pA;GainIndex=%d;", cgain, cgain/1e9, ab[ao + kHKA_oGainIndex]
+	sprintf t, "Gain=%.4g mV/pA;GainIndex=%d;", cgain/1e9, ab[ao + kHKA_oGainIndex]
 	s += t
 
 	// ---- analog filters -------------------------------------------------------------

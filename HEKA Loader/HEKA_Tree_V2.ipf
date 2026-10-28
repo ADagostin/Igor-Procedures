@@ -10,6 +10,14 @@
 //  !! files -- the function names are unchanged, so keeping both gives duplicate-name
 //  !! compile errors.  HEKA_Browser.ipf needs no change and can stay as it is.
 //
+//  BUNDLED AND UNBUNDLED RECORDINGS
+//  --------------------------------
+//  PatchMaster can keep a recording as one bundle file or as a set of files sharing a
+//  base name (expt.dat, expt.pul, expt.pgf, ...).  Both load.  Point HK_Scan at the
+//  .dat of an unbundled set -- or at any of its companions, the .pul included -- and
+//  the rest are found beside it.  See the FILE LAYOUT section further down for how the
+//  two cases are reduced to one item table, and why TrData needs no adjustment.
+//
 //  WHAT'S NEW IN THIS VERSION
 //  --------------------------
 //  PatchMaster NEXT (version string like "1.7.0 [Build 1072]") changed two things.
@@ -267,10 +275,18 @@ static Function/S HK_CStr(bb, off, maxLen)		// zero-terminated ASCII string
 End
 
 // PatchMaster stored time -> Igor date/time seconds (origin 01-Jan-1904)
-Function HK_PMTime2Igor(storedTime)
+Function HK_PMTime2Igor(storedTime, Type)
+	String Type
 	Variable storedTime
 
-	Variable t = storedTime - kHK_JanFirst1990
+	Variable t
+	StrSwitch (Type) //Added afterwards to try (?) fixing the hour:min:sec output 
+		Case "TIM": //original
+			t = storedTime - kHK_JanFirst1990
+		Break
+		Default:
+			t = storedTime
+	endswitch
 	if( t < 0 )
 		t += kHK_HighDWord
 	endif
@@ -279,7 +295,289 @@ End
 
 
 // =====================================================================================
+//  FILE LAYOUT  --  BUNDLED AND UNBUNDLED
+//
+//  PatchMaster writes one file per kind of information -- .dat (the raw data stream),
+//  .pul, .pgf, .amp, .sol, .mrk, .mth, .onl, .ana -- and will optionally concatenate
+//  them into a single "bundle" file.  DataFile_v9 section 1 lists four shapes a data
+//  file can take:
+//        raw data from byte 0                 oldest, converted PULSE files
+//        "DATA" then raw data
+//        "DAT1" + an EMPTY bundle header      an unbundled set
+//        "DAT2" + a FILLED bundle header      a bundle
+//  Only the last one carries the item table, so only the last one is self-contained.
+//
+//  Everything downstream is written against ONE abstraction: the item table
+//        HK_ItemExt[i]    ".pul", ".dat", ...
+//        HK_ItemFile[i]   which file on disk that item lives in
+//        HK_ItemStart[i]  byte offset of the item within that file
+//        HK_ItemLength[i] its length in bytes
+//  For a bundle every HK_ItemFile is the bundle itself and the starts come from the
+//  header.  For an unbundled set each item is its own file, so HK_ItemFile differs per
+//  row and HK_ItemStart is just that file's own header size.  No other code needs to
+//  know which case it is looking at.
+//
+//  TrData NEEDS NO ADJUSTMENT either way.  DataFile_v9 calls it an "offset into the
+//  data file", and it is absolute: in both reference bundles the first trace's TrData
+//  equals the .dat item start exactly (256 classic, 352 NEXT), and PatchMaster writes
+//  the same absolute value into a standalone .dat, whose own header occupies those
+//  same leading bytes.  HK_VerifyData() re-checks that on any file.
+// =====================================================================================
+
+// The sub-files of a PatchMaster recording, in the order the bundle table uses them.
+static StrConstant kHK_Exts = ".dat;.pul;.pgf;.amp;.sol;.mrk;.mth;.onl;.ana"
+
+
+// Position of the dot that starts the filename extension, or -1 if there is none.
+// Dots inside folder names do not count, hence the separator test; both ":" and "\"
+// appear in Igor paths depending on platform and on how the path was obtained.
+static Function HK_ExtDot(pathStr)
+	String pathStr
+
+	Variable d = strsearch(pathStr, ".", inf, 1)
+	if( d < 0 )
+		return -1
+	endif
+	Variable s1 = strsearch(pathStr, ":",  inf, 1)
+	Variable s2 = strsearch(pathStr, "\\", inf, 1)
+	Variable s3 = strsearch(pathStr, "/",  inf, 1)
+	Variable sep = max(s1, max(s2, s3))
+	if( d < sep )
+		return -1
+	endif
+	return d
+End
+
+// "C:folder:expt.pul" -> "C:folder:expt"
+Function/S HK_BasePath(pathStr)
+	String pathStr
+
+	Variable d = HK_ExtDot(pathStr)
+	if( d <= 0 )
+		return pathStr
+	endif
+	return pathStr[0, d-1]
+End
+
+// ".PUL" -> ".pul";  no extension -> ""
+static Function/S HK_ExtOf(pathStr)
+	String pathStr
+
+	Variable d = HK_ExtDot(pathStr)
+	if( d < 0 )
+		return ""
+	endif
+	return LowerStr( pathStr[d, inf] )
+End
+
+// Length of a file in bytes, or -1 if it cannot be opened.  Doubles as the existence
+// test: Open/R/Z is used rather than GetFileFolderInfo because it is the same call the
+// rest of this file already relies on.
+static Function HK_FileBytes(pathStr)
+	String pathStr
+
+	Variable refNum
+	Open/R/Z=1 refNum as pathStr
+	if( V_flag != 0 )
+		return -1
+	endif
+	FStatus refNum
+	Variable n = V_logEOF
+	Close refNum
+	return n
+End
+
+// First n bytes of a file as a byte wave, or a null wave reference.
+static Function/WAVE HK_HeadBytes(pathStr, n)
+	String pathStr
+	Variable n
+
+	DFREF dfr = HK_Home()
+	Wave/Z nullw = $""
+
+	Variable refNum
+	Open/R/Z=1 refNum as pathStr
+	if( V_flag != 0 )
+		return nullw
+	endif
+	FStatus refNum
+	if( V_logEOF < n )
+		n = V_logEOF
+	endif
+	if( n <= 0 )
+		Close refNum
+		return nullw
+	endif
+	Make/O/B/U/N=(n) dfr:HK_Probe/WAVE=pb
+	FSetPos refNum, 0
+	FBinRead refNum, pb
+	Close refNum
+	return pb
+End
+
+// How many bytes sit in front of the raw data stream of a .dat file -- 0, 4, 256 or
+// 352, per the four file shapes listed above.  The 256/352 choice follows the same
+// format code the bundled path uses, because PatchMaster NEXT widened the header.
+static Function HK_DatHeaderSize(pathStr)
+	String pathStr
+
+	Wave/Z pb = HK_HeadBytes(pathStr, 64)
+	if( !WaveExists(pb) )
+		return 0
+	endif
+	if( numpnts(pb) < 64 )
+		return 0
+	endif
+	String sig = HK_CStr(pb, 0, 4)
+	if( CmpStr(sig, "DATA") == 0 )
+		return 4
+	endif
+	if( CmpStr(sig, "DAT1") != 0 && CmpStr(sig, "DAT2") != 0 )
+		return 0
+	endif
+	Variable hswap = (pb[52] == 0)
+	if( HK_I32(pb, 56, hswap) >= 2000 )
+		return 352
+	endif
+	return 256
+End
+
+// Offset of the "Tree" magic inside a tree file.  A standalone .pul / .pgf / .amp is
+// the bare tree, so this is normally 0; the other two candidates cost nothing and make
+// the reader survive a file that kept a bundle-style header in front of its tree.
+// Returns -1 if no magic is found, which is how a non-tree file is rejected.
+static Function HK_TreeStart(pathStr)
+	String pathStr
+
+	Wave/Z pb = HK_HeadBytes(pathStr, 384)
+	if( !WaveExists(pb) )
+		return -1
+	endif
+	String cand = "0;256;352"
+	Variable i, o, m
+	for( i = 0; i < ItemsInList(cand); i += 1 )
+		o = str2num(StringFromList(i, cand))
+		if( o + 4 > numpnts(pb) )
+			continue
+		endif
+		m = HK_U32(pb, o, 0)
+		if( m == 0x54726565 || m == 0x65657254 )
+			return o
+		endif
+	endfor
+	return -1
+End
+
+
+// Build the item table for an UNBUNDLED set, from any one of its files.  The companion
+// files are the ones sharing the base name, so "expt.dat" and "expt.pul" are equally
+// good starting points -- whichever the user happened to pick in the file dialog.
+static Function HK_BuildUnbundledItems(pathStr)
+	String pathStr
+
+	DFREF dfr = HK_Home()
+
+	String ext = HK_ExtOf(pathStr)
+	if( strlen(ext) == 0 )
+		Printf "HK_Scan: \"%s\" has no filename extension, so its companion files cannot be found.\r", pathStr
+		return -1
+	endif
+	if( WhichListItem(ext, kHK_Exts) < 0 )
+		Printf "HK_Scan: \"%s\" is not a PatchMaster extension. Expected one of: %s\r", ext, kHK_Exts
+		return -1
+	endif
+	String base = HK_BasePath(pathStr)
+
+	Variable n = ItemsInList(kHK_Exts)
+	Make/O/D/N=(n) dfr:HK_ItemStart/WAVE=iStart
+	Make/O/D/N=(n) dfr:HK_ItemLength/WAVE=iLen
+	Make/O/T/N=(n) dfr:HK_ItemExt/WAVE=iExt
+	Make/O/T/N=(n) dfr:HK_ItemFile/WAVE=iFile
+	iStart = 0
+	iLen   = 0
+	iExt   = ""
+	iFile  = ""
+
+	Variable i, sz, st, found = 0
+	String e, f, present = ""
+	for( i = 0; i < n; i += 1 )
+		e  = StringFromList(i, kHK_Exts)
+		f  = base + e
+		sz = HK_FileBytes(f)
+		if( sz <= 0 )
+			continue
+		endif
+		if( CmpStr(e, ".dat") == 0 )
+			st = HK_DatHeaderSize(f)
+		elseif( CmpStr(e, ".mth") == 0 )
+			st = 0							// MethodFile format, not a tree; recorded only
+		else
+			st = HK_TreeStart(f)
+			if( st < 0 )
+				Printf "HK_Scan: \"%s\" exists but contains no Tree magic -- ignored.\r", f
+				continue
+			endif
+		endif
+		iExt[i]   = e
+		iFile[i]  = f
+		iStart[i] = st
+		iLen[i]   = sz - st
+		found    += 1
+		present  += e + " "
+	endfor
+
+	if( HK_ItemIndex(".pul") < 0 )
+		Printf "HK_Scan: no \"%s.pul\" next to this file, so there is nothing to scan.\r", base
+		Print  "         An unbundled recording needs its .pul companion in the same folder."
+		return -2
+	endif
+
+	// Version text: an empty DAT1 header still carries it at offset 8.  If the .dat is
+	// a bare stream there is nothing to read, and HK_Scan fills it in from the tree
+	// root record instead.
+	String ver = ""
+	Variable idx = HK_ItemIndex(".dat")
+	if( idx >= 0 )
+		Wave/Z pb = HK_HeadBytes(iFile[idx], 64)
+		if( WaveExists(pb) )
+			if( numpnts(pb) >= 40 )
+				if( CmpStr(HK_CStr(pb, 0, 3), "DAT") == 0 )
+					ver = HK_CStr(pb, 8, 32)
+				endif
+			endif
+		endif
+	endif
+
+	// An unbundled .dat has no item table, so the classic/NEXT question cannot be
+	// settled here.  HK_Scan settles it from the .pul trace-record size, which is
+	// decisive; 1000 is only the starting assumption.
+	Variable fc = 1000
+	idx = HK_ItemIndex(".dat")
+	if( idx >= 0 )
+		if( iStart[idx] == 352 )
+			fc = 2000
+		endif
+	endif
+
+	String/G dfr:HK_Path         = pathStr
+	String/G dfr:HK_Signature    = "unbundled"
+	String/G dfr:HK_PMVersion    = ver
+	Variable/G dfr:HK_Bundled    = 0
+	Variable/G dfr:HK_nItems     = found
+	Variable/G dfr:HK_FormatCode = fc
+	Variable/G dfr:HK_ItemSize   = 0
+	Variable/G dfr:HK_HeaderSize = 0
+	Variable/G dfr:HK_FileSize   = HK_FileBytes(pathStr)
+
+	Printf "HK_Scan: unbundled set \"%s\" -- found %s\r", base, present
+	return 0
+End
+
+
+// =====================================================================================
 //  BUNDLE HEADER
+//  Reads the layout of whatever file the user picked: a DAT2 bundle is parsed from its
+//  own item table, anything else is treated as one file of an unbundled set.
 // =====================================================================================
 Function HK_ReadBundleHeader(pathStr)
 	String pathStr
@@ -301,9 +599,12 @@ Function HK_ReadBundleHeader(pathStr)
 	Close refNum
 
 	String sig = HK_CStr(hh, 0, 8)
-	if( CmpStr(sig[0,2], "DAT") != 0 )
-		Printf "HK_ReadBundleHeader: signature is \"%s\", not a bundled PatchMaster file.\r", sig
-		return -2
+
+	// Only "DAT2" means a filled bundle header.  "DAT1" is an EMPTY one, "DATA" and a
+	// bare stream have none at all, and a .pul/.pgf/... picked straight from the file
+	// dialog starts with the Tree magic -- all four are unbundled sets.
+	if( CmpStr(sig[0,3], "DAT2") != 0 )
+		return HK_BuildUnbundledItems(pathStr)
 	endif
 
 	Variable hswap  = (hh[52] == 0)			// oIsLittleEndian: TRUE (1) = little-endian
@@ -340,9 +641,15 @@ Function HK_ReadBundleHeader(pathStr)
 		return -3
 	endif
 
+	// Every item of a bundle lives in the bundle itself.  Filling this in here is what
+	// lets HK_Scan, HKS_LoadBlock and HK_LoadTrace treat both layouts identically.
+	Make/O/T/N=(nItems) dfr:HK_ItemFile/WAVE=iFile
+	iFile = pathStr
+
 	String/G dfr:HK_Path        = pathStr
 	String/G dfr:HK_Signature   = sig
 	String/G dfr:HK_PMVersion   = HK_CStr(hh, 8, 32)
+	Variable/G dfr:HK_Bundled   = 1
 	Variable/G dfr:HK_nItems    = nItems
 	Variable/G dfr:HK_FormatCode = fmtCode
 	Variable/G dfr:HK_ItemSize   = itemSize
@@ -350,6 +657,83 @@ Function HK_ReadBundleHeader(pathStr)
 	Variable/G dfr:HK_FileSize   = fileSize
 
 	return 0
+End
+
+
+// =====================================================================================
+//  WHICH FILE HOLDS WHAT.  Everything that reads bytes goes through these, so a bundle
+//  and an unbundled set are the same thing to the rest of the package.
+// =====================================================================================
+
+// The file an item lives in, or "" if the recording has no such item.
+Function/S HK_ItemFileFor(ext)
+	String ext
+
+	DFREF dfr = HK_Home()
+	Variable idx = HK_ItemIndex(ext)
+	if( idx < 0 )
+		return ""
+	endif
+	// No HK_ItemFile at all means an experiment saved by an earlier version of this
+	// package, when every item was by definition in the one bundle file.
+	Wave/Z/T/SDFR=dfr iFile = HK_ItemFile
+	Variable haveFile = 0
+	if( WaveExists(iFile) )
+		if( idx < numpnts(iFile) )
+			haveFile = 1
+		endif
+	endif
+	if( haveFile )
+		return iFile[idx]
+	endif
+	SVAR/Z p = dfr:HK_Path
+	if( SVAR_Exists(p) )
+		return p
+	endif
+	return ""
+End
+
+// The file holding the raw data stream.  For a bundle that is the bundle itself.
+Function/S HK_DataFile()
+
+	String f = HK_ItemFileFor(".dat")
+	if( strlen(f) )
+		return f
+	endif
+	DFREF dfr = HK_Home()
+	SVAR/Z p = dfr:HK_Path
+	if( SVAR_Exists(p) )
+		return p
+	endif
+	return ""
+End
+
+// The file the currently scanned tree block was read from.
+Function/S HK_TreeFile()
+
+	DFREF dfr = HK_Home()
+	SVAR/Z bf = dfr:HK_BlockFile
+	if( SVAR_Exists(bf) )
+		if( strlen(bf) )
+			return bf
+		endif
+	endif
+	SVAR/Z p = dfr:HK_Path
+	if( SVAR_Exists(p) )
+		return p
+	endif
+	return ""
+End
+
+// 1 if the scanned recording is a DAT2 bundle, 0 if it is an unbundled set.
+Function HK_IsBundled()
+
+	DFREF dfr = HK_Home()
+	NVAR/Z b = dfr:HK_Bundled
+	if( !NVAR_Exists(b) )
+		return 1
+	endif
+	return b != 0
 End
 
 
@@ -448,7 +832,7 @@ Function HK_Scan(pathStr, [which])
 
 	Variable idx = HK_ItemIndex("." + which)
 	if( idx < 0 )
-		Printf "HK_Scan: this bundle contains no \".%s\" block.\r", which
+		Printf "HK_Scan: this recording contains no \".%s\" block.\r", which
 		return -3
 	endif
 
@@ -459,10 +843,18 @@ Function HK_Scan(pathStr, [which])
 		return -4
 	endif
 
+	// The block may live in the file the user picked (a bundle) or in a companion file
+	// beside it (an unbundled set).  HK_ItemFile knows which; nothing else here cares.
+	String blockFile = HK_ItemFileFor("." + which)
+	if( strlen(blockFile) == 0 )
+		blockFile = pathStr
+	endif
+
 	// ---- ONE disk read: the whole tree block into memory --------------------------
 	Variable refNum
-	Open/R/Z=1 refNum as pathStr
+	Open/R/Z=1 refNum as blockFile
 	if( V_flag != 0 )
+		Printf "HK_Scan: cannot open \"%s\".\r", blockFile
 		return -5
 	endif
 	Make/O/B/U/N=(blockLen) dfr:HK_Bytes/WAVE=bb
@@ -494,6 +886,27 @@ Function HK_Scan(pathStr, [which])
 		lsz[i] = HK_I32(bb, 8 + 4*i, swap)
 	endfor
 
+	// ---- classic or PatchMaster NEXT? ----------------------------------------------
+	// An unbundled recording may have no bundle header at all, so the format code is
+	// not always available -- but the tree states the answer outright: PatchMaster NEXT
+	// widened TraceRecord from 512 to 528 bytes, which is level 4 of the .pul tree.
+	// Checked on bundled files too, where it costs nothing and cross-checks the header.
+	if( CmpStr(which, "pul") == 0 && nLevels >= 5 )
+		Variable fcTree = 1000
+		if( lsz[4] >= 528 )
+			fcTree = 2000
+		endif
+		NVAR fcode0 = dfr:HK_FormatCode
+		if( fcode0 != fcTree )
+			if( HK_IsBundled() )
+				Printf "HK_Scan: the bundle header says format %d, but the trace record is %d bytes -- that is %s. Using %d.\r", fcode0, lsz[4], SelectString(fcTree >= 2000, "classic / v1000", "PatchMaster NEXT"), fcTree
+			else
+				Printf "HK_Scan: trace record is %d bytes -> %s (format %d).\r", lsz[4], SelectString(fcTree >= 2000, "classic / v1000", "PatchMaster NEXT"), fcTree
+			endif
+			fcode0 = fcTree
+		endif
+	endif
+
 	Variable pos = 8 + 4*nLevels			// offset of the root record, inside the block
 
 	// ---- walk ---------------------------------------------------------------------
@@ -516,8 +929,15 @@ Function HK_Scan(pathStr, [which])
 	Variable/G dfr:HK_nLevels    = nLevels
 	Variable/G dfr:HK_nNodes     = nNodes
 	String/G   dfr:HK_Which      = which
+	String/G   dfr:HK_BlockFile  = blockFile
 
 	HK_KillDefs()							// field tables belong to the previous tree
+
+	// A bare .dat stream carries no version text; the .pul root record does.
+	SVAR pmv = dfr:HK_PMVersion
+	if( strlen(pmv) == 0 && CmpStr(which, "pul") == 0 )
+		pmv = HK_GetS(0, "RoVersionName")
+	endif
 
 	Make/O/D/N=(nLevels) dfr:HK_LevelCount/WAVE=lc
 	lc = 0
@@ -530,9 +950,16 @@ Function HK_Scan(pathStr, [which])
 	Printf "-------------------------------------------------------------\r"
 	NVAR fcode = dfr:HK_FormatCode
 	NVAR isize = dfr:HK_ItemSize
-	Printf "HEKA bundle : %s\r", pathStr
+	Printf "HEKA file   : %s   [%s]\r", pathStr, SelectString(HK_IsBundled(), "unbundled set", "bundled")
+	if( !HK_IsBundled() )
+		Printf "  .%s from  : %s\r", which, blockFile
+	endif
 	Printf "PatchMaster : %s   (block .%s, %d bytes, %s-endian)\r", ver, which, blockLen, SelectString(swap, "little", "big")
-	Printf "format code : %d  ->  %s   (BundleItem %d bytes, header %d)\r", fcode, SelectString(fcode >= 2000, "classic / v1000", "PatchMaster NEXT"), isize, 64 + 12*isize
+	if( HK_IsBundled() )
+		Printf "format code : %d  ->  %s   (BundleItem %d bytes, header %d)\r", fcode, SelectString(fcode >= 2000, "classic / v1000", "PatchMaster NEXT"), isize, 64 + 12*isize
+	else
+		Printf "format code : %d  ->  %s   (from the trace record size)\r", fcode, SelectString(fcode >= 2000, "classic / v1000", "PatchMaster NEXT")
+	endif
 	Printf "levels      : %d   sizes = ", nLevels
 	for( i = 0; i < nLevels; i += 1 )
 		Printf "%d%s", lsz[i], SelectString(i < nLevels-1, "", ", ")
@@ -1478,7 +1905,9 @@ static Function HK_RawNum(bb, base, off, type, swap)
 		case "R4":
 			return HK_R4(bb, o, swap)
 		case "TIM":
-			return HK_PMTime2Igor( HK_R8(bb, o, swap) )
+			return HK_PMTime2Igor( HK_R8(bb, o, swap),type )
+		case "TIM_ori":
+			return HK_PMTime2Igor( HK_R8(bb, o, swap),type )
 	endswitch
 	return NaN
 End
@@ -1569,9 +1998,11 @@ Function/S HK_GetS(node, field)
 	endif
 
 	Variable v = HK_RawNum(bb, nd[node][1], off, type, swap)
-
+	Variable v2 = HK_RawNum(bb, nd[node][1], off, "TIM_ori", swap) // trying to circumvent a bug (?) in hour:min:sec output
+	
 	if( CmpStr(type, "TIM") == 0 )
-		return Secs2Date(v, 2) + " " + Secs2Time(v, 3)
+		//return Secs2Date(v, 2) + " " + Secs2Time(v, 3) // original
+		return Secs2Date(v, 2) + " " + Secs2Time(v2,3)
 	endif
 	if( CmpStr(type, "C8") == 0 )
 		return SelectString(v >= 32 && v < 127, num2istr(v), num2char(v))
@@ -1801,10 +2232,16 @@ Function HK_SelfTest()
 
 	DFREF dfr = HK_Home()
 	Wave/Z/SDFR=dfr nd = HK_Node
-	SVAR/Z/SDFR=dfr path  = HK_Path
 	SVAR/Z/SDFR=dfr which = HK_Which
 	if( !WaveExists(nd) || CmpStr(which, "pul") != 0 )
 		Print "HK_SelfTest: run HK_Scan(\"\") on the .pul block first."
+		return -1
+	endif
+	// The tree records live in the bundle, or in the companion .pul of an unbundled
+	// set -- HK_Offset() is relative to that file either way.
+	String path = HK_TreeFile()
+	if( strlen(path) == 0 )
+		Print "HK_SelfTest: no file on record; run HK_Scan() first."
 		return -1
 	endif
 
@@ -1894,7 +2331,7 @@ Function HK_VerifyData()
 
 	Variable idx = HK_ItemIndex(".dat")
 	if( idx < 0 )
-		Print "HK_VerifyData: no .dat block in this bundle."
+		Print "HK_VerifyData: this recording has no .dat raw-data file."
 		return -1
 	endif
 	Wave/SDFR=dfr iStart = HK_ItemStart
@@ -1943,7 +2380,7 @@ Function HK_VerifyData()
 		prevEnd = dEnd
 	endfor
 
-	Printf "HK_VerifyData: %d traces, .dat block %g..%g (%g bytes)\r", nTr, datStart, datEnd, datEnd-datStart
+	Printf "HK_VerifyData: %d traces, .dat %g..%g (%g bytes) in %s\r", nTr, datStart, datEnd, datEnd-datStart, HK_DataFile()
 	Printf "   outside block : %d\r", outside
 	Printf "   gaps          : %d\r", gaps
 	Printf "   overlaps      : %d\r", overlaps
